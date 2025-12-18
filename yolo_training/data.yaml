@@ -1,0 +1,44 @@
+# YOLOv8 Dataset Configuration
+# Custom dataset for 15 ImageNet categories
+
+path: ./dataset
+train: train/images
+val: val/images
+
+# Number of classes
+nc: 15
+
+# Class names (mapped from ImageNet synsets)
+names:
+  0: pineapple
+  1: apple
+  2: bell_pepper
+  3: bicycle
+  4: broccoli
+  5: bus
+  6: car
+  7: cat
+  8: dog
+  9: elephant
+  10: horse
+  11: lemon
+  12: motorcycle
+  13: strawberry
+  14: tomato
+
+# Synset ID mapping (for reference)
+# n07753275: pineapple
+# n07742313: apple
+# n07720875: bell_pepper
+# n02834778: bicycle
+# n07714990: broccoli
+# n02924116: bus
+# n02958343: car
+# n02121620: cat
+# n02084071: dog
+# n02504013: elephant
+# n02374451: horse
+# n07749582: lemon
+# n03790512: motorcycle
+# n07745940: strawberry
+# n07734017: tomato

@@ -1,0 +1,256 @@
+/* CBIR System - Main Stylesheet */
+
+/* ===== Base Styles ===== */
+body {
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+main {
+    flex: 1;
+}
+
+/* ===== Upload Area ===== */
+.upload-area {
+    border: 2px dashed #dee2e6;
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    background-color: #f8f9fa;
+}
+
+.upload-area:hover,
+.upload-area.drag-over {
+    border-color: #0d6efd;
+    background-color: #e7f1ff;
+}
+
+.upload-area.drag-over {
+    transform: scale(1.02);
+}
+
+/* ===== Image Cards ===== */
+.image-card {
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+.image-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.image-card .card-img-top {
+    height: 150px;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+}
+
+.image-card:hover .card-img-top {
+    transform: scale(1.05);
+}
+
+/* ===== Result Cards ===== */
+.result-card {
+    transition: all 0.3s ease;
+}
+
+.result-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.1);
+}
+
+.result-card .card-img-top {
+    height: 180px;
+    object-fit: cover;
+}
+
+/* ===== Color Indicators ===== */
+.color-dot {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+}
+
+/* ===== Bounding Box Overlay ===== */
+#bboxOverlay {
+    pointer-events: none;
+}
+
+/* ===== Object Row Hover ===== */
+.object-row {
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+}
+
+.object-row:hover {
+    background-color: #e7f1ff;
+}
+
+/* ===== Custom Badge Styles ===== */
+.badge {
+    font-weight: 500;
+}
+
+/* ===== Jumbotron ===== */
+.jumbotron {
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+}
+
+/* ===== Stats Cards ===== */
+.card.text-center .display-4 {
+    font-size: 2.5rem;
+}
+
+/* ===== Thumbnail Styles ===== */
+.img-thumbnail {
+    height: 100px;
+    object-fit: cover;
+    transition: transform 0.2s ease;
+}
+
+.img-thumbnail:hover {
+    transform: scale(1.1);
+}
+
+/* ===== Gallery Grid ===== */
+.gallery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+}
+
+/* ===== Transform Preview ===== */
+#previewImage {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+#originalImage {
+    max-height: 400px;
+    object-fit: contain;
+}
+
+/* ===== Feature Cards ===== */
+.feature-card {
+    text-align: center;
+    padding: 1.5rem;
+}
+
+.feature-card i {
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+/* ===== Sticky Sidebar ===== */
+.sticky-top {
+    z-index: 100;
+}
+
+/* ===== Loading Spinner ===== */
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(255, 255, 255, 0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+}
+
+/* ===== Pagination ===== */
+.pagination .page-link {
+    color: #0d6efd;
+}
+
+.pagination .page-item.active .page-link {
+    background-color: #0d6efd;
+    border-color: #0d6efd;
+}
+
+/* ===== Form Range ===== */
+.form-range::-webkit-slider-thumb {
+    background: #0d6efd;
+}
+
+.form-range::-moz-range-thumb {
+    background: #0d6efd;
+}
+
+/* ===== Alert Styles ===== */
+.alert {
+    border-radius: 0.5rem;
+}
+
+/* ===== Table Styles ===== */
+.table-sm td, .table-sm th {
+    padding: 0.4rem;
+}
+
+/* ===== Progress Bar ===== */
+.progress {
+    border-radius: 10px;
+}
+
+.progress-bar {
+    border-radius: 10px;
+}
+
+/* ===== Modal Styles ===== */
+.modal-content {
+    border-radius: 0.75rem;
+}
+
+/* ===== Responsive Adjustments ===== */
+@media (max-width: 768px) {
+    .jumbotron {
+        padding: 2rem !important;
+    }
+    
+    .jumbotron .display-5 {
+        font-size: 1.75rem;
+    }
+    
+    .image-card .card-img-top {
+        height: 120px;
+    }
+    
+    .result-card .card-img-top {
+        height: 140px;
+    }
+    
+    .card.text-center .display-4 {
+        font-size: 2rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .btn-group-sm > .btn {
+        padding: 0.2rem 0.4rem;
+        font-size: 0.75rem;
+    }
+    
+    .navbar-brand {
+        font-size: 1rem;
+    }
+}
+
+/* ===== Print Styles ===== */
+@media print {
+    .navbar, footer, .btn, .btn-group {
+        display: none !important;
+    }
+    
+    .card {
+        border: 1px solid #000;
+        break-inside: avoid;
+    }
+}

@@ -1,0 +1,11 @@
+/Data - zip
+/Data
+/django_app/core/__pycache__
+/django_app/core/migrations/__pycache__
+/flask_api/__pycache__
+/flask_api/resources/__pycache__
+/venv/Lib/site-packages/_distutils_hack/__pycache__
+/venv
+/yolo_training/dataset
+/django_app/config/__pycache__
+/flask_api/services/__pycache__

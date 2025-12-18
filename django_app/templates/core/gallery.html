@@ -1,0 +1,166 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Gallery - CBIR System{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h2><i class="bi bi-grid-3x3-gap"></i> Image Gallery</h2>
+    <a href="{% url 'core:upload' %}" class="btn btn-primary">
+        <i class="bi bi-cloud-upload"></i> Upload New
+    </a>
+</div>
+
+<!-- Filter Form -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label class="form-label">Category</label>
+                <select name="category" class="form-select">
+                    <option value="">All Categories</option>
+                    {% for value, display_name in categories %}
+                    <option value="{{ value }}" {% if request.GET.category == value %}selected{% endif %}>{{ display_name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Status</label>
+                <select name="processed" class="form-select">
+                    <option value="">All</option>
+                    <option value="yes" {% if request.GET.processed == 'yes' %}selected{% endif %}>Processed</option>
+                    <option value="no" {% if request.GET.processed == 'no' %}selected{% endif %}>Not Processed</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Sort By</label>
+                <select name="sort" class="form-select">
+                    <option value="-uploaded_at" {% if request.GET.sort == '-uploaded_at' %}selected{% endif %}>Newest First</option>
+                    <option value="uploaded_at" {% if request.GET.sort == 'uploaded_at' %}selected{% endif %}>Oldest First</option>
+                    <option value="original_filename" {% if request.GET.sort == 'original_filename' %}selected{% endif %}>Name A-Z</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary w-100">
+                    <i class="bi bi-filter"></i> Filter
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Gallery Grid -->
+{% if images %}
+<div class="row">
+    {% for image in images %}
+    <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
+        <div class="card h-100 image-card">
+            <a href="{% url 'core:image_detail' image.id %}">
+                <img src="{{ image.image.url }}" class="card-img-top" alt="{{ image.original_filename }}">
+            </a>
+            <div class="card-body p-2">
+                <p class="card-text small text-truncate mb-1" title="{{ image.original_filename }}">
+                    {{ image.original_filename }}
+                </p>
+                <div class="d-flex justify-content-between align-items-center">
+                    {% if image.is_processed %}
+                    <span class="badge bg-success"><i class="bi bi-check"></i> Processed</span>
+                    {% else %}
+                    <span class="badge bg-secondary">Pending</span>
+                    {% endif %}
+                    <small class="text-muted">{{ image.detected_objects.count }} obj</small>
+                </div>
+            </div>
+            <div class="card-footer p-1">
+                <div class="btn-group btn-group-sm w-100">
+                    <a href="{% url 'core:image_detail' image.id %}" class="btn btn-outline-primary" title="View">
+                        <i class="bi bi-eye"></i>
+                    </a>
+                    <a href="{% url 'core:search_by_image' image.id %}" class="btn btn-outline-success" title="Find Similar">
+                        <i class="bi bi-search"></i>
+                    </a>
+                    <a href="{% url 'core:transform' image.id %}" class="btn btn-outline-warning" title="Transform">
+                        <i class="bi bi-magic"></i>
+                    </a>
+                    <button type="button" class="btn btn-outline-danger" title="Delete" 
+                            onclick="deleteImage({{ image.id }}, '{{ image.original_filename }}')">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Pagination -->
+{% if is_paginated %}
+<nav aria-label="Page navigation">
+    <ul class="pagination justify-content-center">
+        {% if page_obj.has_previous %}
+        <li class="page-item">
+            <a class="page-link" href="?page=1{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">First</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Previous</a>
+        </li>
+        {% endif %}
+        
+        <li class="page-item active">
+            <span class="page-link">Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}</span>
+        </li>
+        
+        {% if page_obj.has_next %}
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Next</a>
+        </li>
+        <li class="page-item">
+            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% for key, value in request.GET.items %}{% if key != 'page' %}&{{ key }}={{ value }}{% endif %}{% endfor %}">Last</a>
+        </li>
+        {% endif %}
+    </ul>
+</nav>
+{% endif %}
+
+{% else %}
+<div class="text-center py-5">
+    <i class="bi bi-images display-1 text-muted"></i>
+    <h4 class="mt-3">No images found</h4>
+    <p class="text-muted">Upload some images to get started.</p>
+    <a href="{% url 'core:upload' %}" class="btn btn-primary">
+        <i class="bi bi-cloud-upload"></i> Upload Image
+    </a>
+</div>
+{% endif %}
+
+<!-- Delete Modal -->
+<div class="modal fade" id="deleteModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Confirm Delete</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong id="deleteFileName"></strong>?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form id="deleteForm" method="post" style="display:inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Delete</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function deleteImage(imageId, fileName) {
+    document.getElementById('deleteFileName').textContent = fileName;
+    document.getElementById('deleteForm').action = '/image/' + imageId + '/delete/';
+    new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+</script>
+{% endblock %}

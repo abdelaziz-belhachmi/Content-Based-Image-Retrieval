@@ -1,0 +1,156 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Home - CBIR System{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="jumbotron bg-light p-5 rounded">
+            <h1 class="display-5"><i class="bi bi-images"></i> Content-Based Image Retrieval</h1>
+            <p class="lead">Object detection and similarity search on a large collection of images using YOLOv8 and advanced feature descriptors.</p>
+            <hr class="my-4">
+            <p>Upload images, detect objects, extract features, and find similar images using color, texture, and shape descriptors.</p>
+            <div class="d-flex gap-2">
+                <a class="btn btn-primary btn-lg" href="{% url 'core:upload' %}">
+                    <i class="bi bi-cloud-upload"></i> Upload Image
+                </a>
+                <a class="btn btn-outline-primary btn-lg" href="{% url 'core:search' %}">
+                    <i class="bi bi-search"></i> Search Images
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center bg-primary text-white">
+            <div class="card-body">
+                <i class="bi bi-image display-4"></i>
+                <h3 class="mt-2">{{ total_images }}</h3>
+                <p class="mb-0">Total Images</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-success text-white">
+            <div class="card-body">
+                <i class="bi bi-bounding-box display-4"></i>
+                <h3 class="mt-2">{{ total_objects }}</h3>
+                <p class="mb-0">Detected Objects</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-info text-white">
+            <div class="card-body">
+                <i class="bi bi-tags display-4"></i>
+                <h3 class="mt-2">{{ categories|length }}</h3>
+                <p class="mb-0">Categories</p>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center bg-warning text-dark">
+            <div class="card-body">
+                <i class="bi bi-clock-history display-4"></i>
+                <h3 class="mt-2">{{ total_searches }}</h3>
+                <p class="mb-0">Recent Searches</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mb-4">
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-pie-chart"></i> Category Distribution</h5>
+            </div>
+            <div class="card-body">
+                {% if categories %}
+                <ul class="list-group list-group-flush">
+                    {% for cat in categories %}
+                    <li class="list-group-item d-flex justify-content-between align-items-center">
+                        {{ cat.class_name }}
+                        <span class="badge bg-primary rounded-pill">{{ cat.count }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted">No categories found. Upload some images to get started.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card h-100">
+            <div class="card-header">
+                <h5><i class="bi bi-lightning"></i> Features</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-6">
+                        <h6><i class="bi bi-palette text-danger"></i> Color</h6>
+                        <ul class="small">
+                            <li>HSV Histograms</li>
+                            <li>Dominant Colors</li>
+                            <li>Color Moments</li>
+                        </ul>
+                    </div>
+                    <div class="col-6">
+                        <h6><i class="bi bi-grid-3x3 text-success"></i> Texture</h6>
+                        <ul class="small">
+                            <li>Tamura Features</li>
+                            <li>Gabor Filters</li>
+                            <li>LBP & GLCM</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="row mt-2">
+                    <div class="col-6">
+                        <h6><i class="bi bi-diagram-3 text-primary"></i> Shape</h6>
+                        <ul class="small">
+                            <li>Hu Moments</li>
+                            <li>HOG Descriptors</li>
+                            <li>Contour Features</li>
+                        </ul>
+                    </div>
+                    <div class="col-6">
+                        <h6><i class="bi bi-cpu text-warning"></i> Detection</h6>
+                        <ul class="small">
+                            <li>YOLOv8n Model</li>
+                            <li>15 Classes</li>
+                            <li>Real-time</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% if recent_images %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5><i class="bi bi-clock"></i> Recent Images</h5>
+                <a href="{% url 'core:gallery' %}" class="btn btn-sm btn-outline-primary">View All</a>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for image in recent_images %}
+                    <div class="col-md-2 col-sm-4 col-6 mb-3">
+                        <a href="{% url 'core:image_detail' image.id %}">
+                            <img src="{{ image.image.url }}" class="img-thumbnail" alt="{{ image.original_filename }}">
+                        </a>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

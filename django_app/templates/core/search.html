@@ -1,0 +1,191 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Search - CBIR System{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8 mx-auto">
+        <div class="card">
+            <div class="card-header">
+                <h4><i class="bi bi-search"></i> Similarity Search</h4>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data" id="searchForm">
+                    {% csrf_token %}
+                    
+                    <!-- Image Upload -->
+                    <div class="mb-4">
+                        <label class="form-label">Query Image</label>
+                        <div class="upload-area" id="uploadArea">
+                            <input type="file" name="image" id="imageInput" accept="image/*" class="d-none" required>
+                            <div class="text-center py-4" id="uploadPrompt">
+                                <i class="bi bi-image display-3 text-muted"></i>
+                                <p class="mt-2">Drop an image or click to browse</p>
+                                <button type="button" class="btn btn-outline-primary btn-sm" onclick="document.getElementById('imageInput').click()">
+                                    Browse Files
+                                </button>
+                            </div>
+                            <div class="text-center py-3 d-none" id="previewArea">
+                                <img id="imagePreview" class="img-fluid mb-2" style="max-height: 200px;">
+                                <p id="fileName" class="text-muted small mb-1"></p>
+                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearImage()">
+                                    <i class="bi bi-x"></i> Remove
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Search Options -->
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Descriptor Type</label>
+                            <select name="descriptor_type" class="form-select">
+                                <option value="combined">Combined (All Features)</option>
+                                <option value="color_histogram">Color Histogram</option>
+                                <option value="dominant_colors">Dominant Colors</option>
+                                <option value="color_moments">Color Moments</option>
+                                <option value="tamura">Tamura Texture</option>
+                                <option value="gabor">Gabor Filters</option>
+                                <option value="lbp">LBP (Local Binary Pattern)</option>
+                                <option value="glcm">GLCM Texture</option>
+                                <option value="hu_moments">Hu Moments</option>
+                                <option value="hog">HOG Descriptor</option>
+                                <option value="contour">Contour Features</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Distance Metric</label>
+                            <select name="distance_metric" class="form-select">
+                                <option value="cosine">Cosine Similarity</option>
+                                <option value="euclidean">Euclidean Distance</option>
+                                <option value="manhattan">Manhattan Distance</option>
+                                <option value="chi_square">Chi-Square Distance</option>
+                                <option value="histogram_intersection">Histogram Intersection</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label">Number of Results</label>
+                            <select name="top_k" class="form-select">
+                                <option value="5">5 images</option>
+                                <option value="10" selected>10 images</option>
+                                <option value="20">20 images</option>
+                                <option value="50">50 images</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Filter by Category</label>
+                            <select name="category" class="form-select">
+                                <option value="">All Categories</option>
+                                {% for value, name in form.fields.category.choices %}
+                                {% if value %}
+                                <option value="{{ value }}">{{ name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg" id="searchBtn">
+                            <i class="bi bi-search"></i> Find Similar Images
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Description Card -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-lightbulb"></i> How It Works</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="rounded-circle bg-primary text-white d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-upload fs-4"></i>
+                        </div>
+                        <h6 class="mt-2">1. Upload Query</h6>
+                        <p class="small text-muted">Upload an image you want to find similar images to</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="rounded-circle bg-success text-white d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-cpu fs-4"></i>
+                        </div>
+                        <h6 class="mt-2">2. Extract Features</h6>
+                        <p class="small text-muted">System extracts visual features (color, texture, shape)</p>
+                    </div>
+                    <div class="col-md-4 text-center mb-3">
+                        <div class="rounded-circle bg-warning text-dark d-inline-flex align-items-center justify-content-center" style="width: 60px; height: 60px;">
+                            <i class="bi bi-grid-3x3-gap fs-4"></i>
+                        </div>
+                        <h6 class="mt-2">3. Find Matches</h6>
+                        <p class="small text-muted">Compare with database and return most similar images</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const uploadArea = document.getElementById('uploadArea');
+const imageInput = document.getElementById('imageInput');
+const uploadPrompt = document.getElementById('uploadPrompt');
+const previewArea = document.getElementById('previewArea');
+const imagePreview = document.getElementById('imagePreview');
+const fileName = document.getElementById('fileName');
+
+uploadArea.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    uploadArea.classList.add('drag-over');
+});
+
+uploadArea.addEventListener('dragleave', () => {
+    uploadArea.classList.remove('drag-over');
+});
+
+uploadArea.addEventListener('drop', (e) => {
+    e.preventDefault();
+    uploadArea.classList.remove('drag-over');
+    if (e.dataTransfer.files.length) {
+        imageInput.files = e.dataTransfer.files;
+        showPreview(e.dataTransfer.files[0]);
+    }
+});
+
+imageInput.addEventListener('change', (e) => {
+    if (e.target.files.length) {
+        showPreview(e.target.files[0]);
+    }
+});
+
+function showPreview(file) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        imagePreview.src = e.target.result;
+        fileName.textContent = file.name;
+        uploadPrompt.classList.add('d-none');
+        previewArea.classList.remove('d-none');
+    };
+    reader.readAsDataURL(file);
+}
+
+function clearImage() {
+    imageInput.value = '';
+    uploadPrompt.classList.remove('d-none');
+    previewArea.classList.add('d-none');
+}
+
+document.getElementById('searchForm').addEventListener('submit', function() {
+    const btn = document.getElementById('searchBtn');
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Searching...';
+});
+</script>
+{% endblock %}

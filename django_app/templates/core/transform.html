@@ -1,0 +1,234 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Transform - {{ image.original_filename }}{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:gallery' %}">Gallery</a></li>
+        <li class="breadcrumb-item"><a href="{% url 'core:image_detail' image.id %}">{{ image.original_filename }}</a></li>
+        <li class="breadcrumb-item active">Transform</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Original Image -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-image"></i> Original Image</h6>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ image.image.url }}" class="img-fluid rounded" id="originalImage" alt="Original">
+            </div>
+            <div class="card-footer text-center">
+                <small class="text-muted">{{ image.width }} × {{ image.height }}</small>
+            </div>
+        </div>
+    </div>
+
+    <!-- Transform Options -->
+    <div class="col-md-2 d-flex align-items-center justify-content-center">
+        <i class="bi bi-arrow-right display-4 text-muted"></i>
+    </div>
+
+    <!-- Transformed Preview -->
+    <div class="col-md-5">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-magic"></i> Transformed Preview</h6>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ image.image.url }}" class="img-fluid rounded" id="previewImage" alt="Preview">
+                <div id="loadingSpinner" class="d-none py-4">
+                    <div class="spinner-border text-primary"></div>
+                    <p class="mt-2">Applying transformation...</p>
+                </div>
+            </div>
+            <div class="card-footer text-center">
+                <small class="text-muted" id="previewDimensions">{{ image.width }} × {{ image.height }}</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Transform Controls -->
+<div class="card mt-4">
+    <div class="card-header">
+        <h5 class="mb-0"><i class="bi bi-sliders"></i> Transformation Options</h5>
+    </div>
+    <div class="card-body">
+        <form method="post" id="transformForm">
+            {% csrf_token %}
+            
+            <div class="row">
+                <!-- Resize -->
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-aspect-ratio"></i> Resize</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">Width</label>
+                                <input type="number" name="resize_width" class="form-control" placeholder="Auto" min="1" max="4096">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Height</label>
+                                <input type="number" name="resize_height" class="form-control" placeholder="Auto" min="1" max="4096">
+                            </div>
+                            <div class="form-check">
+                                <input type="checkbox" name="keep_aspect" class="form-check-input" id="keepAspect" checked>
+                                <label class="form-check-label" for="keepAspect">Keep aspect ratio</label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Rotate/Flip -->
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-arrow-repeat"></i> Rotate & Flip</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">Rotation</label>
+                                <select name="rotation" class="form-select">
+                                    <option value="0">No rotation</option>
+                                    <option value="90">90° Clockwise</option>
+                                    <option value="180">180°</option>
+                                    <option value="270">270° Clockwise</option>
+                                </select>
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Flip</label>
+                                <select name="flip" class="form-select">
+                                    <option value="">No flip</option>
+                                    <option value="horizontal">Horizontal</option>
+                                    <option value="vertical">Vertical</option>
+                                    <option value="both">Both</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Adjustments -->
+                <div class="col-md-4">
+                    <div class="card h-100">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-brightness-high"></i> Adjustments</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="mb-2">
+                                <label class="form-label">Brightness: <span id="brightnessVal">1.0</span></label>
+                                <input type="range" name="brightness" class="form-range" min="0.5" max="2" step="0.1" value="1" id="brightness">
+                            </div>
+                            <div class="mb-2">
+                                <label class="form-label">Contrast: <span id="contrastVal">1.0</span></label>
+                                <input type="range" name="contrast" class="form-range" min="0.5" max="2" step="0.1" value="1" id="contrast">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mt-3">
+                <!-- Filters -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-funnel"></i> Filters</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="grayscale" class="form-check-input" id="grayscale">
+                                        <label class="form-check-label" for="grayscale">Grayscale</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="blur" class="form-check-input" id="blur">
+                                        <label class="form-check-label" for="blur">Blur</label>
+                                    </div>
+                                </div>
+                                <div class="col-6">
+                                    <div class="form-check">
+                                        <input type="checkbox" name="sharpen" class="form-check-input" id="sharpen">
+                                        <label class="form-check-label" for="sharpen">Sharpen</label>
+                                    </div>
+                                    <div class="form-check">
+                                        <input type="checkbox" name="edge_detect" class="form-check-input" id="edgeDetect">
+                                        <label class="form-check-label" for="edgeDetect">Edge Detection</label>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Format -->
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-header">
+                            <h6 class="mb-0"><i class="bi bi-file-earmark-image"></i> Output Format</h6>
+                        </div>
+                        <div class="card-body">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label class="form-label">Format</label>
+                                    <select name="output_format" class="form-select">
+                                        <option value="jpeg">JPEG</option>
+                                        <option value="png">PNG</option>
+                                        <option value="webp">WebP</option>
+                                    </select>
+                                </div>
+                                <div class="col-6">
+                                    <label class="form-label">Quality: <span id="qualityVal">85</span>%</label>
+                                    <input type="range" name="quality" class="form-range" min="10" max="100" step="5" value="85" id="quality">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-4 d-flex gap-2 justify-content-end">
+                <button type="button" class="btn btn-outline-secondary" onclick="resetForm()">
+                    <i class="bi bi-arrow-counterclockwise"></i> Reset
+                </button>
+                <button type="submit" class="btn btn-primary" name="action" value="preview">
+                    <i class="bi bi-eye"></i> Preview
+                </button>
+                <button type="submit" class="btn btn-success" name="action" value="save">
+                    <i class="bi bi-download"></i> Save Transformed
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Range value displays
+document.getElementById('brightness').addEventListener('input', (e) => {
+    document.getElementById('brightnessVal').textContent = e.target.value;
+});
+document.getElementById('contrast').addEventListener('input', (e) => {
+    document.getElementById('contrastVal').textContent = e.target.value;
+});
+document.getElementById('quality').addEventListener('input', (e) => {
+    document.getElementById('qualityVal').textContent = e.target.value;
+});
+
+function resetForm() {
+    document.getElementById('transformForm').reset();
+    document.getElementById('brightnessVal').textContent = '1.0';
+    document.getElementById('contrastVal').textContent = '1.0';
+    document.getElementById('qualityVal').textContent = '85';
+    document.getElementById('previewImage').src = document.getElementById('originalImage').src;
+}
+</script>
+{% endblock %}
