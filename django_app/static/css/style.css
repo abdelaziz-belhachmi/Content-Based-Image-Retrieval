@@ -41,6 +41,10 @@ main {
     box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
 }
 
+.image-card.border-primary {
+    box-shadow: 0 0 0 3px rgba(13, 110, 253, 0.5);
+}
+
 .image-card .card-img-top {
     height: 150px;
     object-fit: cover;
@@ -49,6 +53,14 @@ main {
 
 .image-card:hover .card-img-top {
     transform: scale(1.05);
+}
+
+.image-card .image-checkbox {
+    cursor: pointer;
+    background-color: white;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    width: 20px;
+    height: 20px;
 }
 
 /* ===== Result Cards ===== */

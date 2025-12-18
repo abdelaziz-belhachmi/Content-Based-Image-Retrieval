@@ -9,8 +9,18 @@ import os
 
 def image_upload_path(instance, filename):
     """Generate upload path for images"""
-    ext = filename.split('.')[-1]
-    new_filename = f"{instance.category or 'uncategorized'}_{timezone.now().strftime('%Y%m%d_%H%M%S')}_{filename}"
+    # Clean up the original filename
+    import re
+    base_name = os.path.splitext(filename)[0]
+    ext = os.path.splitext(filename)[1].lower()
+    
+    # Remove special characters, keep alphanumeric and hyphens
+    clean_name = re.sub(r'[^\w\-]', '_', base_name)
+    
+    # Create unique filename with timestamp
+    timestamp = timezone.now().strftime('%Y%m%d_%H%M%S')
+    new_filename = f"{timestamp}_{clean_name}{ext}"
+    
     return os.path.join('uploads', new_filename)
 
 

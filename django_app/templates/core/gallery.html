@@ -5,9 +5,16 @@
 {% block content %}
 <div class="d-flex justify-content-between align-items-center mb-4">
     <h2><i class="bi bi-grid-3x3-gap"></i> Image Gallery</h2>
-    <a href="{% url 'core:upload' %}" class="btn btn-primary">
-        <i class="bi bi-cloud-upload"></i> Upload New
-    </a>
+    <div class="d-flex gap-2">
+        {% if images %}
+        <button type="button" class="btn btn-outline-danger" onclick="deleteAllImages()">
+            <i class="bi bi-trash"></i> Delete All
+        </button>
+        {% endif %}
+        <a href="{% url 'core:upload' %}" class="btn btn-primary">
+            <i class="bi bi-cloud-upload"></i> Upload New
+        </a>
+    </div>
 </div>
 
 <!-- Filter Form -->
@@ -50,10 +57,10 @@
 
 <!-- Gallery Grid -->
 {% if images %}
-<div class="row">
+<div class="row" id="galleryGrid">
     {% for image in images %}
     <div class="col-lg-2 col-md-3 col-sm-4 col-6 mb-4">
-        <div class="card h-100 image-card">
+        <div class="card h-100 image-card" data-image-id="{{ image.id }}">
             <a href="{% url 'core:image_detail' image.id %}">
                 <img src="{{ image.image.url }}" class="card-img-top" alt="{{ image.original_filename }}">
             </a>
@@ -132,7 +139,7 @@
 </div>
 {% endif %}
 
-<!-- Delete Modal -->
+<!-- Delete Single Image Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -153,6 +160,31 @@
         </div>
     </div>
 </div>
+
+<!-- Delete All Images Modal -->
+<div class="modal fade" id="deleteAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle"></i> Delete All Images</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>Are you sure you want to delete <strong>ALL</strong> images in the gallery?</p>
+                <p class="text-danger mb-0"><i class="bi bi-exclamation-circle"></i> This action cannot be undone!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'core:delete_all' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Yes, Delete All
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -161,6 +193,10 @@ function deleteImage(imageId, fileName) {
     document.getElementById('deleteFileName').textContent = fileName;
     document.getElementById('deleteForm').action = '/image/' + imageId + '/delete/';
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+function deleteAllImages() {
+    new bootstrap.Modal(document.getElementById('deleteAllModal')).show();
 }
 </script>
 {% endblock %}

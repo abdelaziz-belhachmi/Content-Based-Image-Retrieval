@@ -206,6 +206,69 @@ class ImageDeleteView(View):
         return redirect('core:gallery')
 
 
+class BulkDeleteView(View):
+    """Bulk delete multiple images"""
+    
+    def post(self, request):
+        try:
+            data = json.loads(request.body)
+            image_ids = data.get('image_ids', [])
+            
+            if not image_ids:
+                return JsonResponse({'success': False, 'error': 'No images selected'})
+            
+            deleted_count = 0
+            for image_id in image_ids:
+                try:
+                    image = Image.objects.get(pk=image_id)
+                    # Delete file
+                    if image.file and os.path.exists(image.file.path):
+                        os.remove(image.file.path)
+                    # Delete database record
+                    image.delete()
+                    deleted_count += 1
+                except Image.DoesNotExist:
+                    continue
+                except Exception as e:
+                    print(f"Error deleting image {image_id}: {e}")
+            
+            return JsonResponse({
+                'success': True,
+                'deleted_count': deleted_count,
+                'message': f'Successfully deleted {deleted_count} image(s)'
+            })
+            
+        except json.JSONDecodeError:
+            return JsonResponse({'success': False, 'error': 'Invalid JSON data'})
+        except Exception as e:
+            return JsonResponse({'success': False, 'error': str(e)})
+
+
+class DeleteAllView(View):
+    """Delete all images"""
+    
+    def post(self, request):
+        try:
+            images = Image.objects.all()
+            deleted_count = 0
+            
+            for image in images:
+                try:
+                    if image.file and os.path.exists(image.file.path):
+                        os.remove(image.file.path)
+                    image.delete()
+                    deleted_count += 1
+                except Exception as e:
+                    print(f"Error deleting image {image.id}: {e}")
+            
+            messages.success(request, f'Successfully deleted {deleted_count} image(s).')
+            return redirect('core:gallery')
+            
+        except Exception as e:
+            messages.error(request, f'Error deleting images: {str(e)}')
+            return redirect('core:gallery')
+
+
 class DetectObjectsView(View):
     """Run object detection on an image"""
     
