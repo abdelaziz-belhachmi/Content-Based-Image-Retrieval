@@ -55,7 +55,7 @@
                 </li>
                 <li class="list-group-item d-flex justify-content-between">
                     <span>Category</span>
-                    <strong>{{ image.get_category_display|default:"Not set" }}</strong>
+                    <strong>{{ image.category|default:"Not set"|title }}</strong>
                 </li>
                 <li class="list-group-item d-flex justify-content-between">
                     <span>Uploaded</span>
@@ -94,7 +94,7 @@
                                 <span class="color-dot" style="background-color: {{ obj.color }};"></span>
                                 {{ obj.class_name }}
                             </td>
-                            <td>{{ obj.confidence|floatformat:1 }}%</td>
+                            <td>{% widthratio obj.confidence 1 100 %}%</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -223,7 +223,7 @@ function drawBoundingBoxes() {
         text.setAttribute('y', (obj.y * scaleY) - 5);
         text.setAttribute('fill', obj.color);
         text.setAttribute('font-size', '12');
-        text.textContent = `${obj.class_name} ${obj.confidence.toFixed(1)}%`;
+        text.textContent = `${obj.class_name} ${(obj.confidence * 100).toFixed(1)}%`;
         svg.appendChild(text);
     });
 }

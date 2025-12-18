@@ -158,7 +158,10 @@ class ImageUploadView(View):
             result = api_client.detect_objects(image.file.path)
             
             if result.get('success') and 'data' in result:
-                for det in result['data'].get('detections', []):
+                detections = result['data'].get('detections', [])
+                best_detection = None
+                
+                for det in detections:
                     DetectedObject.objects.create(
                         image=image,
                         class_id=det['class_id'],
@@ -169,6 +172,15 @@ class ImageUploadView(View):
                         x_max=det['bbox']['x_max'],
                         y_max=det['bbox']['y_max']
                     )
+                    # Track highest confidence detection for auto-category
+                    if best_detection is None or det['confidence'] > best_detection['confidence']:
+                        best_detection = det
+                
+                # Auto-assign category if not set
+                if not image.category and best_detection:
+                    image.category = best_detection['class_name']
+                    image.save()
+                    
         except Exception as e:
             print(f"Detection error: {e}")
 
@@ -214,7 +226,10 @@ class DetectObjectsView(View):
                 image.detected_objects.all().delete()
                 
                 # Save new detections
-                for det in result['data'].get('detections', []):
+                detections = result['data'].get('detections', [])
+                best_detection = None
+                
+                for det in detections:
                     DetectedObject.objects.create(
                         image=image,
                         class_id=det['class_id'],
@@ -225,6 +240,14 @@ class DetectObjectsView(View):
                         x_max=det['bbox']['x_max'],
                         y_max=det['bbox']['y_max']
                     )
+                    # Track highest confidence detection
+                    if best_detection is None or det['confidence'] > best_detection['confidence']:
+                        best_detection = det
+                
+                # Auto-assign category if not set
+                if not image.category and best_detection:
+                    image.category = best_detection['class_name']
+                    image.save()
                 
                 return JsonResponse({
                     'success': True,
