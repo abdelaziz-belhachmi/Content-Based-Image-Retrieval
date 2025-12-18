@@ -20,6 +20,7 @@ urlpatterns = [
     path('image/<int:pk>/delete/', views.ImageDeleteView.as_view(), name='image_delete'),
     path('images/bulk-delete/', views.BulkDeleteView.as_view(), name='bulk_delete'),
     path('images/delete-all/', views.DeleteAllView.as_view(), name='delete_all'),
+    path('images/index-all/', views.IndexAllImagesView.as_view(), name='index_all'),
     
     # Detection
     path('image/<int:pk>/detect/', views.DetectObjectsView.as_view(), name='detect_objects'),

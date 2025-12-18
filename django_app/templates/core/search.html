@@ -17,7 +17,7 @@
                     <div class="mb-4">
                         <label class="form-label">Query Image</label>
                         <div class="upload-area" id="uploadArea">
-                            <input type="file" name="image" id="imageInput" accept="image/*" class="d-none" required>
+                            <input type="file" name="query_image" id="imageInput" accept="image/*" class="d-none" required>
                             <div class="text-center py-4" id="uploadPrompt">
                                 <i class="bi bi-image display-3 text-muted"></i>
                                 <p class="mt-2">Drop an image or click to browse</p>
@@ -38,34 +38,15 @@
                     <!-- Search Options -->
                     <div class="row mb-3">
                         <div class="col-md-6">
-                            <label class="form-label">Descriptor Type</label>
-                            <select name="descriptor_type" class="form-select">
-                                <option value="combined">Combined (All Features)</option>
-                                <option value="color_histogram">Color Histogram</option>
-                                <option value="dominant_colors">Dominant Colors</option>
-                                <option value="color_moments">Color Moments</option>
-                                <option value="tamura">Tamura Texture</option>
-                                <option value="gabor">Gabor Filters</option>
-                                <option value="lbp">LBP (Local Binary Pattern)</option>
-                                <option value="glcm">GLCM Texture</option>
-                                <option value="hu_moments">Hu Moments</option>
-                                <option value="hog">HOG Descriptor</option>
-                                <option value="contour">Contour Features</option>
-                            </select>
-                        </div>
-                        <div class="col-md-6">
                             <label class="form-label">Distance Metric</label>
-                            <select name="distance_metric" class="form-select">
+                            <select name="metric" class="form-select">
                                 <option value="cosine">Cosine Similarity</option>
                                 <option value="euclidean">Euclidean Distance</option>
                                 <option value="manhattan">Manhattan Distance</option>
                                 <option value="chi_square">Chi-Square Distance</option>
-                                <option value="histogram_intersection">Histogram Intersection</option>
+                                <option value="intersection">Histogram Intersection</option>
                             </select>
                         </div>
-                    </div>
-
-                    <div class="row mb-4">
                         <div class="col-md-6">
                             <label class="form-label">Number of Results</label>
                             <select name="top_k" class="form-select">
@@ -75,14 +56,15 @@
                                 <option value="50">50 images</option>
                             </select>
                         </div>
+                    </div>
+
+                    <div class="row mb-4">
                         <div class="col-md-6">
                             <label class="form-label">Filter by Category</label>
-                            <select name="category" class="form-select">
+                            <select name="filter_class" class="form-select">
                                 <option value="">All Categories</option>
-                                {% for value, name in form.fields.category.choices %}
-                                {% if value %}
-                                <option value="{{ value }}">{{ name }}</option>
-                                {% endif %}
+                                {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat|title }}</option>
                                 {% endfor %}
                             </select>
                         </div>
@@ -96,6 +78,60 @@
                 </form>
             </div>
         </div>
+
+        {% if search_performed %}
+        <!-- Search Results -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5><i class="bi bi-grid-3x3-gap"></i> Search Results</h5>
+            </div>
+            <div class="card-body">
+                {% if results %}
+                <p class="text-muted mb-3">Found {{ results|length }} similar images</p>
+                <div class="row">
+                    {% for result in results %}
+                    <div class="col-md-4 col-sm-6 mb-4">
+                        <div class="card h-100">
+                            <div class="position-relative">
+                                <a href="{% url 'core:image_detail' result.image.id %}">
+                                    <img src="{{ result.image.file.url }}" class="card-img-top" alt="{{ result.image.filename }}" style="height: 150px; object-fit: cover;">
+                                </a>
+                                <span class="position-absolute top-0 start-0 badge bg-primary m-2">#{{ forloop.counter }}</span>
+                                <span class="position-absolute top-0 end-0 badge bg-success m-2">{{ result.similarity|floatformat:1 }}%</span>
+                            </div>
+                            <div class="card-body p-2">
+                                <p class="card-text small text-truncate mb-1" title="{{ result.image.filename }}">
+                                    {{ result.image.filename }}
+                                </p>
+                                <p class="card-text small text-muted mb-1">
+                                    <i class="bi bi-tag"></i> {{ result.class_name }}
+                                </p>
+                                <div class="progress" style="height: 6px;">
+                                    <div class="progress-bar bg-success" style="width: {{ result.similarity }}%"></div>
+                                </div>
+                            </div>
+                            <div class="card-footer p-2">
+                                <a href="{% url 'core:image_detail' result.image.id %}" class="btn btn-sm btn-outline-primary w-100">
+                                    <i class="bi bi-eye"></i> View Details
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="bi bi-search display-3 text-muted"></i>
+                    <h5 class="mt-3">No similar images found</h5>
+                    <p class="text-muted">Try uploading more images, indexing them, or adjusting your search parameters.</p>
+                    <a href="{% url 'core:gallery' %}" class="btn btn-primary">
+                        <i class="bi bi-images"></i> Go to Gallery
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
 
         <!-- Description Card -->
         <div class="card mt-4">

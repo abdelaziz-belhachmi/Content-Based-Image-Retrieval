@@ -54,7 +54,7 @@ def register_resources(api):
         ObjectDescriptorResource,
         StoredDescriptorResource
     )
-    from resources.search import SimilaritySearchResource, ObjectSearchResource
+    from resources.search import SimilaritySearchResource, ObjectSearchResource, IndexManagementResource
     from resources.images import ImageUploadResource, ImageResource, ImageTransformResource
     
     # Detection endpoints
@@ -69,6 +69,7 @@ def register_resources(api):
     # Search endpoints
     api.add_resource(SimilaritySearchResource, '/search/similar')
     api.add_resource(ObjectSearchResource, '/search/by-object')
+    api.add_resource(IndexManagementResource, '/search/index')
     
     # Image management endpoints
     api.add_resource(ImageUploadResource, '/images/upload')

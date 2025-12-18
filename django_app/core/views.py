@@ -180,6 +180,17 @@ class ImageUploadView(View):
                 if not image.category and best_detection:
                     image.category = best_detection['class_name']
                     image.save()
+                
+                # Add image to similarity search index
+                try:
+                    metadata = {'class_name': image.category or 'unknown'}
+                    api_client.add_to_index(
+                        image_path=image.file.path,
+                        image_id=str(image.id),
+                        metadata=metadata
+                    )
+                except Exception as e:
+                    print(f"Indexing error: {e}")
                     
         except Exception as e:
             print(f"Detection error: {e}")
@@ -266,6 +277,43 @@ class DeleteAllView(View):
             
         except Exception as e:
             messages.error(request, f'Error deleting images: {str(e)}')
+            return redirect('core:gallery')
+
+
+class IndexAllImagesView(View):
+    """Index all images for similarity search"""
+    
+    def post(self, request):
+        try:
+            images = Image.objects.all()
+            indexed_count = 0
+            errors = []
+            
+            for image in images:
+                try:
+                    if image.file and os.path.exists(image.file.path):
+                        metadata = {'class_name': image.category or 'unknown'}
+                        result = api_client.add_to_index(
+                            image_path=image.file.path,
+                            image_id=str(image.id),
+                            metadata=metadata
+                        )
+                        if result.get('success'):
+                            indexed_count += 1
+                        else:
+                            errors.append(f"Image {image.id}: {result.get('error', 'Unknown error')}")
+                except Exception as e:
+                    errors.append(f"Image {image.id}: {str(e)}")
+            
+            if indexed_count > 0:
+                messages.success(request, f'Successfully indexed {indexed_count} image(s) for search.')
+            if errors:
+                messages.warning(request, f'Some images failed to index: {len(errors)} errors')
+            
+            return redirect('core:gallery')
+            
+        except Exception as e:
+            messages.error(request, f'Error indexing images: {str(e)}')
             return redirect('core:gallery')
 
 
@@ -416,22 +464,43 @@ class SearchView(TemplateView):
                 # Clean up temp file
                 os.unlink(tmp_path)
                 
+                # Enrich results with Django Image objects
+                api_results = result.get('data', {}).get('results', [])
+                enriched_results = []
+                for r in api_results:
+                    try:
+                        img = Image.objects.get(pk=int(r['image_id']))
+                        enriched_results.append({
+                            'image': img,
+                            'similarity': r['similarity'] * 100,  # Convert to percentage
+                            'distance': r['distance'],
+                            'class_name': r.get('metadata', {}).get('class_name', 'Unknown')
+                        })
+                    except Image.DoesNotExist:
+                        continue
+                
                 # Prepare context
                 context = self.get_context_data()
                 context['form'] = form
                 context['search_performed'] = True
-                context['results'] = result.get('data', {})
+                context['results'] = enriched_results
+                context['result_count'] = len(enriched_results)
                 
                 # Log search
                 SearchHistory.objects.create(
                     metric_used=metric,
-                    num_results=len(result.get('data', {}).get('results', []))
+                    num_results=len(enriched_results)
                 )
                 
                 return render(request, self.template_name, context)
                 
             except Exception as e:
                 messages.error(request, f'Search error: {str(e)}')
+        else:
+            # Show form validation errors
+            for field, errors in form.errors.items():
+                for error in errors:
+                    messages.error(request, f'{field}: {error}')
         
         context = self.get_context_data()
         context['form'] = form

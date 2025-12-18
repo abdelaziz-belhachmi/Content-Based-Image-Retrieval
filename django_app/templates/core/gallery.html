@@ -7,6 +7,9 @@
     <h2><i class="bi bi-grid-3x3-gap"></i> Image Gallery</h2>
     <div class="d-flex gap-2">
         {% if images %}
+        <button type="button" class="btn btn-outline-success" onclick="indexAllImages()">
+            <i class="bi bi-arrow-repeat"></i> Index All for Search
+        </button>
         <button type="button" class="btn btn-outline-danger" onclick="deleteAllImages()">
             <i class="bi bi-trash"></i> Delete All
         </button>
@@ -185,6 +188,31 @@
         </div>
     </div>
 </div>
+
+<!-- Index All Images Modal -->
+<div class="modal fade" id="indexAllModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-arrow-repeat"></i> Index All Images</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p>This will index all images in the gallery for similarity search.</p>
+                <p class="text-muted mb-0"><i class="bi bi-info-circle"></i> This may take a while for large galleries.</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                <form method="post" action="{% url 'core:index_all' %}">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-arrow-repeat"></i> Index All
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_js %}
@@ -197,6 +225,10 @@ function deleteImage(imageId, fileName) {
 
 function deleteAllImages() {
     new bootstrap.Modal(document.getElementById('deleteAllModal')).show();
+}
+
+function indexAllImages() {
+    new bootstrap.Modal(document.getElementById('indexAllModal')).show();
 }
 </script>
 {% endblock %}
