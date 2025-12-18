@@ -144,6 +144,11 @@ class ImageUploadView(View):
                 messages.error(request, f'Errors: {"; ".join(errors)}')
             
             return redirect('core:gallery')
+        else:
+            # Show form errors to user
+            for field, field_errors in form.errors.items():
+                for error in field_errors:
+                    messages.error(request, f'{field}: {error}')
         
         return render(request, self.template_name, {'form': form})
     

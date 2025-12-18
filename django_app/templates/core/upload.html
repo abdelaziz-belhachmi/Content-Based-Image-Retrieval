@@ -1,68 +1,93 @@
 {% extends 'core/base.html' %}
 
-{% block title %}Upload Image - CBIR System{% endblock %}
+{% block title %}Upload Images - CBIR System{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-md-8">
+    <div class="col-lg-10">
         <div class="card">
-            <div class="card-header">
-                <h4><i class="bi bi-cloud-upload"></i> Upload Image</h4>
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h4 class="mb-0"><i class="bi bi-cloud-upload"></i> Upload Images</h4>
+                <span class="badge bg-info" id="fileCount">0 files selected</span>
             </div>
             <div class="card-body">
                 <form method="post" enctype="multipart/form-data" id="uploadForm">
                     {% csrf_token %}
                     
                     <div class="mb-4">
-                        <label class="form-label">Select Image</label>
+                        <label class="form-label">Select Images <small class="text-muted">(You can select multiple files)</small></label>
                         <div class="upload-area" id="uploadArea">
-                            <input type="file" name="image" id="imageInput" accept="image/*" class="d-none" required>
+                            <input type="file" name="images" id="imageInput" accept="image/*" class="d-none" multiple required>
                             <div class="text-center py-5" id="uploadPrompt">
                                 <i class="bi bi-cloud-arrow-up display-1 text-muted"></i>
-                                <p class="mt-3">Drag and drop an image here, or click to browse</p>
-                                <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('imageInput').click()">
-                                    <i class="bi bi-folder2-open"></i> Browse Files
-                                </button>
-                            </div>
-                            <div class="text-center py-3 d-none" id="previewArea">
-                                <img id="imagePreview" class="img-fluid mb-3" style="max-height: 300px;">
-                                <p id="fileName" class="text-muted"></p>
-                                <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearImage()">
-                                    <i class="bi bi-x"></i> Remove
-                                </button>
+                                <p class="mt-3 mb-1">Drag and drop images here, or click to browse</p>
+                                <p class="text-muted small">Supports: JPG, PNG, WebP, BMP • Max 50MB per file</p>
+                                <div class="d-flex justify-content-center gap-2">
+                                    <button type="button" class="btn btn-outline-primary" onclick="document.getElementById('imageInput').click()">
+                                        <i class="bi bi-folder2-open"></i> Browse Files
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('folderInput').click()">
+                                        <i class="bi bi-folder"></i> Select Folder
+                                    </button>
+                                </div>
+                                <input type="file" id="folderInput" class="d-none" webkitdirectory multiple accept="image/*">
                             </div>
                         </div>
-                        {% if form.image.errors %}
-                        <div class="text-danger mt-2">{{ form.image.errors }}</div>
+                        {% if form.images.errors %}
+                        <div class="text-danger mt-2">{{ form.images.errors }}</div>
                         {% endif %}
                     </div>
 
-                    <div class="mb-3">
-                        <label class="form-label">Category (Optional)</label>
-                        <select name="category" class="form-select">
-                            <option value="">Auto-detect from detection</option>
-                            {% for value, name in form.fields.category.choices %}
-                            {% if value %}
-                            <option value="{{ value }}">{{ name }}</option>
-                            {% endif %}
-                            {% endfor %}
-                        </select>
-                        <small class="text-muted">Leave empty to auto-assign based on detected objects</small>
+                    <!-- File Preview List -->
+                    <div class="mb-4 d-none" id="previewSection">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <label class="form-label mb-0">Selected Files</label>
+                            <button type="button" class="btn btn-sm btn-outline-danger" onclick="clearAllFiles()">
+                                <i class="bi bi-trash"></i> Clear All
+                            </button>
+                        </div>
+                        <div class="border rounded p-2" style="max-height: 300px; overflow-y: auto;">
+                            <div class="row g-2" id="previewGrid"></div>
+                        </div>
                     </div>
 
-                    <div class="mb-4">
-                        <div class="form-check">
-                            <input type="checkbox" name="auto_process" class="form-check-input" id="autoProcess" checked>
-                            <label class="form-check-label" for="autoProcess">
-                                Automatically run object detection and extract features
-                            </label>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Category (Optional)</label>
+                            <select name="category" class="form-select">
+                                <option value="">Auto-detect from detection</option>
+                                {% for value, name in form.fields.category.choices %}
+                                {% if value %}
+                                <option value="{{ value }}">{{ name }}</option>
+                                {% endif %}
+                                {% endfor %}
+                            </select>
+                            <small class="text-muted">Applied to all uploaded images</small>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Options</label>
+                            <div class="form-check">
+                                <input type="checkbox" name="auto_detect" class="form-check-input" id="autoProcess" checked>
+                                <label class="form-check-label" for="autoProcess">
+                                    Run object detection after upload
+                                </label>
+                            </div>
                         </div>
                     </div>
 
                     <div class="d-grid gap-2">
-                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn">
-                            <i class="bi bi-cloud-upload"></i> Upload Image
+                        <button type="submit" class="btn btn-primary btn-lg" id="uploadBtn" disabled>
+                            <i class="bi bi-cloud-upload"></i> Upload <span id="uploadBtnText">Images</span>
                         </button>
+                    </div>
+
+                    <!-- Progress Bar -->
+                    <div class="mt-3 d-none" id="progressSection">
+                        <div class="progress" style="height: 25px;">
+                            <div class="progress-bar progress-bar-striped progress-bar-animated" id="uploadProgress" 
+                                 role="progressbar" style="width: 0%">0%</div>
+                        </div>
+                        <p class="text-center text-muted mt-2" id="progressText">Preparing upload...</p>
                     </div>
                 </form>
             </div>
@@ -70,39 +95,41 @@
 
         <div class="card mt-4">
             <div class="card-header">
-                <h5><i class="bi bi-info-circle"></i> Supported Formats</h5>
+                <h5><i class="bi bi-info-circle"></i> Bulk Upload Tips</h5>
             </div>
             <div class="card-body">
                 <div class="row">
-                    <div class="col-md-6">
-                        <h6>Image Formats</h6>
-                        <ul class="list-unstyled">
-                            <li><i class="bi bi-check-circle text-success"></i> JPEG / JPG</li>
-                            <li><i class="bi bi-check-circle text-success"></i> PNG</li>
-                            <li><i class="bi bi-check-circle text-success"></i> WebP</li>
-                            <li><i class="bi bi-check-circle text-success"></i> BMP</li>
-                        </ul>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-images text-primary"></i> Multiple Selection</h6>
+                        <p class="small text-muted">Hold <kbd>Ctrl</kbd> or <kbd>Shift</kbd> to select multiple files in the file browser.</p>
                     </div>
-                    <div class="col-md-6">
-                        <h6>Detectable Objects (15 Classes)</h6>
-                        <div class="d-flex flex-wrap gap-1">
-                            <span class="badge bg-secondary">Pineapple</span>
-                            <span class="badge bg-secondary">Apple</span>
-                            <span class="badge bg-secondary">Bell Pepper</span>
-                            <span class="badge bg-secondary">Bicycle</span>
-                            <span class="badge bg-secondary">Broccoli</span>
-                            <span class="badge bg-secondary">Bus</span>
-                            <span class="badge bg-secondary">Car</span>
-                            <span class="badge bg-secondary">Cat</span>
-                            <span class="badge bg-secondary">Dog</span>
-                            <span class="badge bg-secondary">Elephant</span>
-                            <span class="badge bg-secondary">Horse</span>
-                            <span class="badge bg-secondary">Lemon</span>
-                            <span class="badge bg-secondary">Motorcycle</span>
-                            <span class="badge bg-secondary">Strawberry</span>
-                            <span class="badge bg-secondary">Tomato</span>
-                        </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-folder text-primary"></i> Folder Upload</h6>
+                        <p class="small text-muted">Use "Select Folder" to upload all images from a directory at once.</p>
                     </div>
+                    <div class="col-md-4">
+                        <h6><i class="bi bi-arrows-move text-primary"></i> Drag & Drop</h6>
+                        <p class="small text-muted">Drag multiple files or folders directly onto the upload area.</p>
+                    </div>
+                </div>
+                <hr>
+                <h6>Detectable Objects (15 Classes)</h6>
+                <div class="d-flex flex-wrap gap-1">
+                    <span class="badge bg-secondary">Pineapple</span>
+                    <span class="badge bg-secondary">Apple</span>
+                    <span class="badge bg-secondary">Bell Pepper</span>
+                    <span class="badge bg-secondary">Bicycle</span>
+                    <span class="badge bg-secondary">Broccoli</span>
+                    <span class="badge bg-secondary">Bus</span>
+                    <span class="badge bg-secondary">Car</span>
+                    <span class="badge bg-secondary">Cat</span>
+                    <span class="badge bg-secondary">Dog</span>
+                    <span class="badge bg-secondary">Elephant</span>
+                    <span class="badge bg-secondary">Horse</span>
+                    <span class="badge bg-secondary">Lemon</span>
+                    <span class="badge bg-secondary">Motorcycle</span>
+                    <span class="badge bg-secondary">Strawberry</span>
+                    <span class="badge bg-secondary">Tomato</span>
                 </div>
             </div>
         </div>
@@ -114,10 +141,15 @@
 <script>
 const uploadArea = document.getElementById('uploadArea');
 const imageInput = document.getElementById('imageInput');
+const folderInput = document.getElementById('folderInput');
 const uploadPrompt = document.getElementById('uploadPrompt');
-const previewArea = document.getElementById('previewArea');
-const imagePreview = document.getElementById('imagePreview');
-const fileName = document.getElementById('fileName');
+const previewSection = document.getElementById('previewSection');
+const previewGrid = document.getElementById('previewGrid');
+const fileCount = document.getElementById('fileCount');
+const uploadBtn = document.getElementById('uploadBtn');
+const uploadBtnText = document.getElementById('uploadBtnText');
+
+let selectedFiles = new DataTransfer();
 
 // Drag and drop
 uploadArea.addEventListener('dragover', (e) => {
@@ -132,10 +164,7 @@ uploadArea.addEventListener('dragleave', () => {
 uploadArea.addEventListener('drop', (e) => {
     e.preventDefault();
     uploadArea.classList.remove('drag-over');
-    if (e.dataTransfer.files.length) {
-        imageInput.files = e.dataTransfer.files;
-        showPreview(e.dataTransfer.files[0]);
-    }
+    handleFiles(e.dataTransfer.files);
 });
 
 uploadArea.addEventListener('click', (e) => {
@@ -145,33 +174,132 @@ uploadArea.addEventListener('click', (e) => {
 });
 
 imageInput.addEventListener('change', (e) => {
-    if (e.target.files.length) {
-        showPreview(e.target.files[0]);
-    }
+    handleFiles(e.target.files);
 });
 
-function showPreview(file) {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        imagePreview.src = e.target.result;
-        fileName.textContent = file.name;
-        uploadPrompt.classList.add('d-none');
-        previewArea.classList.remove('d-none');
-    };
-    reader.readAsDataURL(file);
+folderInput.addEventListener('change', (e) => {
+    handleFiles(e.target.files);
+});
+
+function handleFiles(files) {
+    const imageTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/bmp', 'image/gif'];
+    
+    for (let file of files) {
+        if (imageTypes.includes(file.type)) {
+            selectedFiles.items.add(file);
+        }
+    }
+    
+    updatePreview();
 }
 
-function clearImage() {
+function updatePreview() {
+    const files = selectedFiles.files;
+    const count = files.length;
+    
+    fileCount.textContent = `${count} file${count !== 1 ? 's' : ''} selected`;
+    
+    if (count > 0) {
+        previewSection.classList.remove('d-none');
+        uploadBtn.disabled = false;
+        uploadBtnText.textContent = count === 1 ? '1 Image' : `${count} Images`;
+        
+        // Update file input
+        imageInput.files = selectedFiles.files;
+        
+        // Build preview grid
+        previewGrid.innerHTML = '';
+        
+        Array.from(files).forEach((file, index) => {
+            const col = document.createElement('div');
+            col.className = 'col-6 col-md-4 col-lg-3';
+            
+            const card = document.createElement('div');
+            card.className = 'card h-100 position-relative';
+            card.innerHTML = `
+                <div class="position-absolute top-0 end-0 m-1">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="removeFile(${index})" title="Remove">
+                        <i class="bi bi-x"></i>
+                    </button>
+                </div>
+                <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 100px; overflow: hidden;">
+                    <img src="" class="img-fluid" style="max-height: 100px; object-fit: cover;" data-index="${index}">
+                </div>
+                <div class="card-body p-2">
+                    <p class="card-text small text-truncate mb-0" title="${file.name}">${file.name}</p>
+                    <small class="text-muted">${formatFileSize(file.size)}</small>
+                </div>
+            `;
+            
+            col.appendChild(card);
+            previewGrid.appendChild(col);
+            
+            // Load image preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                col.querySelector(`img[data-index="${index}"]`).src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        });
+    } else {
+        previewSection.classList.add('d-none');
+        uploadBtn.disabled = true;
+        uploadBtnText.textContent = 'Images';
+    }
+}
+
+function removeFile(index) {
+    const dt = new DataTransfer();
+    const files = selectedFiles.files;
+    
+    for (let i = 0; i < files.length; i++) {
+        if (i !== index) {
+            dt.items.add(files[i]);
+        }
+    }
+    
+    selectedFiles = dt;
+    updatePreview();
+}
+
+function clearAllFiles() {
+    selectedFiles = new DataTransfer();
     imageInput.value = '';
-    uploadPrompt.classList.remove('d-none');
-    previewArea.classList.add('d-none');
+    updatePreview();
+}
+
+function formatFileSize(bytes) {
+    if (bytes === 0) return '0 Bytes';
+    const k = 1024;
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 }
 
 // Form submission
-document.getElementById('uploadForm').addEventListener('submit', function() {
-    const btn = document.getElementById('uploadBtn');
-    btn.disabled = true;
-    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Uploading...';
+document.getElementById('uploadForm').addEventListener('submit', function(e) {
+    const count = selectedFiles.files.length;
+    
+    uploadBtn.disabled = true;
+    uploadBtn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> Uploading...';
+    
+    document.getElementById('progressSection').classList.remove('d-none');
+    
+    // Simulate progress (actual progress would require AJAX upload)
+    let progress = 0;
+    const progressBar = document.getElementById('uploadProgress');
+    const progressText = document.getElementById('progressText');
+    
+    const interval = setInterval(() => {
+        progress += Math.random() * 15;
+        if (progress > 90) progress = 90;
+        progressBar.style.width = progress + '%';
+        progressBar.textContent = Math.round(progress) + '%';
+        progressText.textContent = `Uploading ${count} image${count !== 1 ? 's' : ''}...`;
+    }, 200);
+    
+    // Clear interval when form actually submits
+    setTimeout(() => clearInterval(interval), 10000);
 });
 </script>
 {% endblock %}
