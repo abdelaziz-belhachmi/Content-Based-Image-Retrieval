@@ -1,0 +1,13 @@
+{
+  "model_name": "yolov8n_finetuned",
+  "timestamp": "2025-12-29T12:54:24.879778",
+  "final_metrics": {
+    "mAP50": 0.7993716572192076,
+    "mAP50-95": 0.6284352485010456,
+    "precision": 0.7688496030051527,
+    "recall": 0.7561166069419045
+  },
+  "training_params": {
+    "epochs_completed": 0
+  }
+}

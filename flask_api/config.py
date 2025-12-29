@@ -27,7 +27,7 @@ class Config:
     MODELS_FOLDER = BASE_DIR.parent / 'yolo_training' / 'models'
     
     # YOLO model
-    YOLO_MODEL_PATH = MODELS_FOLDER / 'yolov8n_custom_best.pt'
+    YOLO_MODEL_PATH = MODELS_FOLDER / 'yolov8n_finetuned_best.pt'
     YOLO_CONFIDENCE_THRESHOLD = 0.25
     YOLO_IOU_THRESHOLD = 0.45
     
