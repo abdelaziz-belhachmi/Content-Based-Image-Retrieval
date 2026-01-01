@@ -153,7 +153,7 @@ class ImageUploadView(View):
         return render(request, self.template_name, {'form': form})
     
     def _detect_objects(self, image):
-        """Run object detection on an image"""
+        """Run object detection on an image and index it for search"""
         try:
             result = api_client.detect_objects(image.file.path)
             
@@ -181,14 +181,40 @@ class ImageUploadView(View):
                     image.category = best_detection['class_name']
                     image.save()
                 
-                # Add image to similarity search index
+                # Add image to object-based similarity search index
+                # This properly indexes detected objects with their features
                 try:
-                    metadata = {'class_name': image.category or 'unknown'}
-                    api_client.add_to_index(
+                    index_result = api_client.add_to_object_index(
                         image_path=image.file.path,
-                        image_id=str(image.id),
-                        metadata=metadata
+                        image_id=image.id,
+                        confidence=0.25
                     )
+                    
+                    # If indexing was successful and returned descriptors, save them
+                    if index_result.get('success') and 'data' in index_result:
+                        descriptors_data = index_result['data'].get('descriptors', [])
+                        detected_objects = list(image.detected_objects.all())
+                        
+                        # Match descriptors to detected objects by class and bbox
+                        for desc_info in descriptors_data:
+                            for det_obj in detected_objects:
+                                # Match by class_id and approximate bbox
+                                if det_obj.class_id == desc_info.get('class_id'):
+                                    desc_dict = desc_info.get('descriptors', {})
+                                    Descriptor.objects.update_or_create(
+                                        detected_object=det_obj,
+                                        defaults={
+                                            'dominant_colors': desc_dict.get('dominant_colors'),
+                                            'color_moments': desc_dict.get('color_moments'),
+                                            'tamura_features': desc_dict.get('tamura'),
+                                            'glcm_features': desc_dict.get('glcm'),
+                                            'hu_moments': desc_dict.get('hu_moments'),
+                                            'contour_features': desc_dict.get('contour'),
+                                        }
+                                    )
+                                    break
+                        
+                        print(f"[INDEX] Indexed image {image.id} with {len(descriptors_data)} objects")
                 except Exception as e:
                     print(f"Indexing error: {e}")
                     
@@ -292,14 +318,36 @@ class IndexAllImagesView(View):
             for image in images:
                 try:
                     if image.file and os.path.exists(image.file.path):
-                        metadata = {'class_name': image.category or 'unknown'}
-                        result = api_client.add_to_index(
+                        # Use object-based indexing
+                        result = api_client.add_to_object_index(
                             image_path=image.file.path,
-                            image_id=str(image.id),
-                            metadata=metadata
+                            image_id=image.id,
+                            confidence=0.25
                         )
                         if result.get('success'):
                             indexed_count += 1
+                            
+                            # Save descriptors if returned
+                            if 'data' in result:
+                                descriptors_data = result['data'].get('descriptors', [])
+                                detected_objects = list(image.detected_objects.all())
+                                
+                                for desc_info in descriptors_data:
+                                    for det_obj in detected_objects:
+                                        if det_obj.class_id == desc_info.get('class_id'):
+                                            desc_dict = desc_info.get('descriptors', {})
+                                            Descriptor.objects.update_or_create(
+                                                detected_object=det_obj,
+                                                defaults={
+                                                    'dominant_colors': desc_dict.get('dominant_colors'),
+                                                    'color_moments': desc_dict.get('color_moments'),
+                                                    'tamura_features': desc_dict.get('tamura'),
+                                                    'glcm_features': desc_dict.get('glcm'),
+                                                    'hu_moments': desc_dict.get('hu_moments'),
+                                                    'contour_features': desc_dict.get('contour'),
+                                                }
+                                            )
+                                            break
                         else:
                             errors.append(f"Image {image.id}: {result.get('error', 'Unknown error')}")
                 except Exception as e:
@@ -454,10 +502,10 @@ class SearchView(TemplateView):
                         tmp.write(chunk)
                     tmp_path = tmp.name
 
-                # Use object-based search as default
+                # Use object-based search
                 result = api_client.search_by_object(
                     tmp_path,
-                    object_id=0,  # 0 means all objects or first object
+                    query_image_id=None,  # No image to exclude for uploaded query
                     top_k=top_k,
                     metric=metric,
                     confidence=confidence
@@ -466,21 +514,38 @@ class SearchView(TemplateView):
                 # Clean up temp file
                 os.unlink(tmp_path)
 
+                # Check if search was successful
+                if not result.get('success'):
+                    messages.error(request, result.get('message', 'Search failed'))
+                    context = self.get_context_data()
+                    context['form'] = form
+                    return render(request, self.template_name, context)
+
                 # Enrich results with Django Image objects
                 api_results = result.get('data', {}).get('results', [])
+                query_classes = result.get('data', {}).get('query_classes', [])
                 enriched_results = []
+                
                 for r in api_results:
                     try:
-                        img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
+                        # image_id might be like "123" or "img_0_filename.jpg"
+                        image_id_str = str(r.get('image_id', ''))
+                        
+                        # Try to extract numeric ID
+                        if image_id_str.isdigit():
+                            img = Image.objects.get(pk=int(image_id_str))
+                        else:
+                            # For indexed images like "img_0_filename.jpg", skip
+                            continue
+                        
                         enriched_results.append({
                             'image': img,
-                            'similarity': r['similarity'] * 100,  # Convert to percentage
-                            'distance': r['distance'],
-                            'class_name': r['metadata'].get('class_name', 'Unknown'),
-                            'object_id': r['object_id'],
-                            'bbox': r['metadata'].get('bbox', {})
+                            'similarity': r.get('similarity', 0) * 100,  # Convert to percentage
+                            'distance': r.get('score', 0),
+                            'matching_classes': r.get('matching_classes', []),
+                            'num_matching_objects': r.get('num_matching_objects', 0)
                         })
-                    except Image.DoesNotExist:
+                    except (Image.DoesNotExist, ValueError):
                         continue
 
                 # Prepare context
@@ -489,6 +554,9 @@ class SearchView(TemplateView):
                 context['search_performed'] = True
                 context['results'] = enriched_results
                 context['result_count'] = len(enriched_results)
+                context['query_classes'] = query_classes
+                context['metric'] = metric
+                context['top_k'] = top_k
 
                 # Log search
                 SearchHistory.objects.create(
@@ -535,10 +603,10 @@ class SearchByImageView(View):
         confidence = float(request.POST.get('confidence', 0.25))
 
         try:
-            # Use object-based search as default
+            # Use object-based search, exclude query image from results
             result = api_client.search_by_object(
                 image.file.path,
-                object_id=0,
+                query_image_id=image.id,  # Exclude this image from results
                 top_k=top_k,
                 metric=metric,
                 confidence=confidence
@@ -551,26 +619,41 @@ class SearchByImageView(View):
                 num_results=len(result.get('data', {}).get('results', []))
             )
 
+            # Check if search was successful
+            if not result.get('success'):
+                messages.error(request, result.get('message', 'Search failed'))
+                return redirect('core:search_by_image', pk=pk)
+
             # Enrich results for template
             api_results = result.get('data', {}).get('results', [])
+            query_classes = result.get('data', {}).get('query_classes', [])
             enriched_results = []
+            
             for r in api_results:
                 try:
-                    img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
+                    # image_id might be like "123" or "img_0_filename.jpg"
+                    image_id_str = str(r.get('image_id', ''))
+                    
+                    # Try to extract numeric ID
+                    if image_id_str.isdigit():
+                        img = Image.objects.get(pk=int(image_id_str))
+                    else:
+                        continue
+                    
                     enriched_results.append({
                         'image': img,
-                        'similarity': r['similarity'] * 100,
-                        'distance': r['distance'],
-                        'class_name': r['metadata'].get('class_name', 'Unknown'),
-                        'object_id': r['object_id'],
-                        'bbox': r['metadata'].get('bbox', {})
+                        'similarity': r.get('similarity', 0) * 100,
+                        'distance': r.get('score', 0),
+                        'matching_classes': r.get('matching_classes', []),
+                        'num_matching_objects': r.get('num_matching_objects', 0)
                     })
-                except Image.DoesNotExist:
+                except (Image.DoesNotExist, ValueError):
                     continue
 
             return render(request, 'core/object_search_results.html', {
                 'query_image': image,
                 'results': enriched_results,
+                'query_classes': query_classes,
                 'metric': metric,
                 'top_k': top_k
             })
@@ -586,7 +669,6 @@ class ObjectSearchView(View):
     def post(self, request):
         try:
             image_id = request.POST.get('image_id')
-            object_id = int(request.POST.get('object_id', 0))
             top_k = int(request.POST.get('top_k', 10))
             metric = request.POST.get('metric', 'cosine')
             confidence = float(request.POST.get('confidence', 0.25))
@@ -595,27 +677,39 @@ class ObjectSearchView(View):
 
             result = api_client.search_by_object(
                 image.file.path,
-                object_id=object_id,
+                query_image_id=image.id,  # Exclude query image from results
                 top_k=top_k,
                 metric=metric,
                 confidence=confidence
             )
 
+            # Check if search was successful
+            if not result.get('success'):
+                messages.error(request, result.get('message', 'Search failed'))
+                return redirect('core:search')
+
             # Prepare enriched results for template
             api_results = result.get('data', {}).get('results', [])
+            query_classes = result.get('data', {}).get('query_classes', [])
             enriched_results = []
+            
             for r in api_results:
                 try:
-                    img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
+                    image_id_str = str(r.get('image_id', ''))
+                    
+                    if image_id_str.isdigit():
+                        img = Image.objects.get(pk=int(image_id_str))
+                    else:
+                        continue
+                    
                     enriched_results.append({
                         'image': img,
-                        'similarity': r['similarity'] * 100,  # Convert to percentage
-                        'distance': r['distance'],
-                        'class_name': r['metadata'].get('class_name', 'Unknown'),
-                        'object_id': r['object_id'],
-                        'bbox': r['metadata'].get('bbox', {})
+                        'similarity': r.get('similarity', 0) * 100,
+                        'distance': r.get('score', 0),
+                        'matching_classes': r.get('matching_classes', []),
+                        'num_matching_objects': r.get('num_matching_objects', 0)
                     })
-                except Image.DoesNotExist:
+                except (Image.DoesNotExist, ValueError):
                     continue
 
             # Query image URL
@@ -625,9 +719,9 @@ class ObjectSearchView(View):
                 'query_image': image,
                 'query_image_url': query_image_url,
                 'results': enriched_results,
+                'query_classes': query_classes,
                 'descriptor_type': 'object',
                 'distance_metric': metric,
-                'object_bbox': None,  # Could be set if you want to highlight the query object
             }
             return render(request, 'core/object_search_results.html', context)
 

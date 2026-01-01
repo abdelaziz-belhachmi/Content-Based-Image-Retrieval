@@ -67,7 +67,8 @@ def register_resources(api):
         ObjectBasedSearchResource, 
         IndexBuildResource, 
         IndexStatsResource,
-        IndexClearResource
+        IndexClearResource,
+        IndexAddImageResource
     )
     from resources.images import ImageUploadResource, ImageResource, ImageTransformResource
     
@@ -85,6 +86,7 @@ def register_resources(api):
     api.add_resource(IndexBuildResource, '/index/build')
     api.add_resource(IndexStatsResource, '/index/stats')
     api.add_resource(IndexClearResource, '/index/clear')
+    api.add_resource(IndexAddImageResource, '/index/add')
     
     # Legacy search endpoints
     api.add_resource(SimilaritySearchResource, '/search/similar')

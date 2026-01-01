@@ -124,16 +124,24 @@
                 {% if descriptors %}
                 <div class="row g-2">
                     {% for desc in descriptors %}
-                    <div class="col-6">
-                        <div class="border rounded p-2 text-center">
-                            <small class="text-muted d-block">{{ desc.descriptor_type }}</small>
-                            <strong>{{ desc.data|length }} dims</strong>
+                    <div class="col-12">
+                        <div class="border rounded p-2">
+                            <small class="text-muted d-block">Object: {{ desc.detected_object.class_name }}</small>
+                            <div class="d-flex flex-wrap gap-1 mt-1">
+                                {% if desc.dominant_colors %}<span class="badge bg-info">Colors</span>{% endif %}
+                                {% if desc.color_moments %}<span class="badge bg-info">Moments</span>{% endif %}
+                                {% if desc.tamura_features %}<span class="badge bg-success">Tamura</span>{% endif %}
+                                {% if desc.glcm_features %}<span class="badge bg-success">GLCM</span>{% endif %}
+                                {% if desc.hu_moments %}<span class="badge bg-warning">Hu</span>{% endif %}
+                                {% if desc.contour_features %}<span class="badge bg-warning">Contour</span>{% endif %}
+                            </div>
                         </div>
                     </div>
                     {% endfor %}
                 </div>
                 {% else %}
-                <p class="text-muted mb-0">No descriptors extracted yet.</p>
+                <p class="text-warning mb-0"><i class="bi bi-exclamation-triangle"></i> No descriptors extracted yet.</p>
+                <small class="text-muted">Re-index this image to extract descriptors.</small>
                 {% endif %}
             </div>
         </div>

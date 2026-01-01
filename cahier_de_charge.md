@@ -1,108 +1,109 @@
-# Cahier de Charge - Système de Recherche d'Images par le Contenu
+# Cahier de Charge - Systeme de Recherche d'Images par le Contenu
 
-## 1. Présentation du Projet
+## 1. Presentation du Projet
 
 ### 1.1 Titre
-**Développement d'une Application Web pour l'Exploration d'une Collection d'Images basée sur la Détection d'Objets et l'Analyse de Contenu Visuel**
+Developpement d'une Application Web pour l'Exploration d'une Collection d'Images basee sur la Detection d'Objets et l'Analyse de Contenu Visuel
 
 ### 1.2 Contexte
-Avec l'explosion du volume de données images, la recherche efficace de contenu visuel spécifique représente un défi majeur. Ce projet académique vise à développer un système intelligent de recherche d'images par le contenu (CBIR - Content-Based Image Retrieval) intégrant la détection d'objets via YOLO.
+Avec l'explosion du volume de donnees images, la recherche efficace de contenu visuel specifique represente un defi majeur. Ce projet academique vise a developper un systeme intelligent de recherche d'images par le contenu (CBIR - Content-Based Image Retrieval) integrant la detection d'objets via YOLO.
 
 ### 1.3 Objectifs
-- Identifier et localiser précisément les objets dans les images
-- Extraire les caractéristiques visuelles fondamentales (couleur, texture, forme)
-- Constituer une base d'indexation robuste
-- Permettre la recherche d'images similaires basée sur le contenu visuel
+- Identifier et localiser precisement les objets dans les images
+- Extraire les caracteristiques visuelles fondamentales (couleur, texture, forme)
+- Constituer une base d'indexation robuste et persistante
+- Permettre la recherche d'images similaires basee sur le contenu visuel des objets detectes
 
 ---
 
-## 2. Architecture du Système
+## 2. Architecture du Systeme
 
 ### 2.1 Vue d'Ensemble
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          APPLICATION WEB                                 │
-│                           (Django)                                       │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │   Upload    │  │  Galerie    │  │  Recherche  │  │ Résultats   │    │
-│  │   Images    │  │  Images     │  │  Similaire  │  │ Affichage   │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-└────────────────────────────────┬────────────────────────────────────────┘
-                                 │ HTTP/REST
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                          API REST (Flask)                                │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐    │
-│  │  Détection  │  │ Extraction  │  │  Calcul     │  │  Recherche  │    │
-│  │   YOLO      │  │ Descripteurs│  │ Similarité  │  │  Images     │    │
-│  └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘    │
-└────────────────────────────────┬────────────────────────────────────────┘
-                                 │
-                                 ▼
-┌─────────────────────────────────────────────────────────────────────────┐
-│                        BASE DE DONNÉES                                   │
-│  ┌─────────────────────────┐  ┌─────────────────────────────────────┐  │
-│  │   Images & Métadonnées  │  │   Descripteurs & Index              │  │
-│  │   (SQLite/PostgreSQL)   │  │   (Vecteurs de caractéristiques)    │  │
-│  └─────────────────────────┘  └─────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------------+
+|                          APPLICATION WEB                                 |
+|                           (Django)                                       |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
+|  |   Upload    |  |  Galerie    |  |  Recherche  |  | Resultats   |     |
+|  |   Images    |  |  Images     |  |  Similaire  |  | Affichage   |     |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
++------------------------------------+------------------------------------+
+                                     | HTTP/REST
+                                     v
++-------------------------------------------------------------------------+
+|                          API REST (Flask)                                |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
+|  |  Detection  |  | Extraction  |  |   Index     |  |  Recherche  |     |
+|  |   YOLO      |  | Descripteurs|  | Persistant  |  |  Objets     |     |
+|  +-------------+  +-------------+  +-------------+  +-------------+     |
++------------------------------------+------------------------------------+
+                                     |
+                                     v
++-------------------------------------------------------------------------+
+|                        BASE DE DONNEES                                   |
+|  +---------------------------+  +-----------------------------------+   |
+|  |   Images & Metadonnees    |  |   Descripteurs & Index Objets    |   |
+|  |   (SQLite/PostgreSQL)     |  |   (JSON persistant)              |   |
+|  +---------------------------+  +-----------------------------------+   |
++-------------------------------------------------------------------------+
 ```
 
 ### 2.2 Stack Technologique
 
 | Composant | Technologie | Justification |
 |-----------|-------------|---------------|
-| Frontend Web | Django Templates + HTML/CSS/JS | Framework Python intégré |
-| Backend Web | Django | Framework web Python robuste |
-| API REST | Flask + Flask-RESTful | Microframework léger pour services ML |
-| Détection d'Objets | YOLOv8n (Ultralytics) | Léger, rapide, 3.2M paramètres |
-| Traitement d'Images | OpenCV, scikit-image, Pillow | Bibliothèques standard |
-| Extraction Features | NumPy, SciPy | Calcul scientifique |
-| Base de Données | SQLite (dev) / PostgreSQL (prod) | Simplicité et robustesse |
+| Frontend Web | Django Templates + Bootstrap 5 | Framework Python integre |
+| Backend Web | Django 5.0 | Framework web Python robuste |
+| API REST | Flask + Flask-RESTful | Microframework leger pour services ML |
+| Detection d'Objets | YOLOv8n (Ultralytics) | Leger, rapide, 3.2M parametres |
+| Traitement d'Images | OpenCV, scikit-image, Pillow | Bibliotheques standard |
+| Extraction Features | NumPy, SciPy, scikit-learn | Calcul scientifique |
+| Base de Donnees | SQLite (dev) / PostgreSQL (prod) | Simplicite et robustesse |
+| Persistance Index | JSON | Lisibilite et compatibilite |
 
 ---
 
-## 3. Base de Données d'Images
+## 3. Base de Donnees d'Images
 
 ### 3.1 Source
-**ImageNet** - Base de données d'images annotées à grande échelle basée sur WordNet.
+ImageNet - Base de donnees d'images annotees a grande echelle basee sur WordNet.
 
-### 3.2 Catégories Sélectionnées (15 classes)
+### 3.2 Categories Selectionnees (15 classes)
 
-| # | Catégorie | Synset ID | Type |
+| # | Categorie | Synset ID | Type |
 |---|-----------|-----------|------|
 | 1 | Ananas (Pineapple) | n07753275 | Fruit |
 | 2 | Apple | n07742313 | Fruit |
-| 3 | Bell Pepper | n07720875 | Légume |
-| 4 | Bicycle | n02834778 | Véhicule |
-| 5 | Broccoli | n07714990 | Légume |
-| 6 | Bus | n02924116 | Véhicule |
-| 7 | Car | n02958343 | Véhicule |
+| 3 | Bell Pepper | n07720875 | Legume |
+| 4 | Bicycle | n02834778 | Vehicule |
+| 5 | Broccoli | n07714990 | Legume |
+| 6 | Bus | n02924116 | Vehicule |
+| 7 | Car | n02958343 | Vehicule |
 | 8 | Cat | n02121620 | Animal |
 | 9 | Dog | n02084071 | Animal |
 | 10 | Elephant | n02504013 | Animal |
 | 11 | Horse | n02374451 | Animal |
 | 12 | Lemon | n07749582 | Fruit |
-| 13 | Motorcycle | n03790512 | Véhicule |
+| 13 | Motorcycle | n03790512 | Vehicule |
 | 14 | Strawberry | n07745940 | Fruit |
-| 15 | Tomato | n07734017 | Fruit/Légume |
+| 15 | Tomato | n07734017 | Fruit/Legume |
 
-### 3.3 Structure des Données
+### 3.3 Structure des Donnees
 
 ```
 Data/
-├── [Catégorie]/
-│   ├── Annotation/
-│   │   └── [synset_id]/
-│   │       └── [synset_id]_[image_id].xml  (Format Pascal VOC)
-│   └── [synset_id]/
-│       └── [synset_id]_[image_id].JPEG
++-- [Categorie]/
+    +-- Annotation/
+    |   +-- [synset_id]/
+    |       +-- [synset_id]_[image_id].xml  (Format Pascal VOC)
+    +-- [synset_id]/
+        +-- [synset_id]_[image_id].JPEG
 ```
 
-### 3.4 Statistiques du Dataset (Après filtrage)
+### 3.4 Statistiques du Dataset
 
-| Catégorie | Images avec Annotations |
+| Categorie | Images avec Annotations |
 |-----------|------------------------|
 | Ananas | 414 |
 | Apple | 505 |
@@ -119,26 +120,26 @@ Data/
 | Motorcycle | 354 |
 | Strawberry | 363 |
 | Tomato | 89 |
-| **Total** | **6,092** |
+| Total | 6,092 |
 
 ---
 
 ## 4. Modules Fonctionnels
 
-### 4.1 Module de Détection d'Objets (YOLOv8n)
+### 4.1 Module de Detection d'Objets (YOLOv8n)
 
-#### 4.1.1 Spécifications
-- **Modèle**: YOLOv8n (nano) - 3.2 millions de paramètres
-- **Entraînement**: Fine-tuning sur les 15 catégories sélectionnées
-- **Format d'entrée**: Images JPEG/PNG
-- **Format de sortie**: Bounding boxes + classes + scores de confiance
+#### 4.1.1 Specifications
+- Modele: YOLOv8n (nano) - 3.2 millions de parametres
+- Entrainement: Fine-tuning sur les 15 categories selectionnees
+- Format d'entree: Images JPEG/PNG
+- Format de sortie: Bounding boxes + classes + scores de confiance
 
-#### 4.1.2 Pipeline de Détection
+#### 4.1.2 Pipeline de Detection
 ```
-Image → Prétraitement → YOLOv8n → Post-traitement (NMS) → Objets détectés
+Image -> Pretraitement -> YOLOv8n -> Post-traitement (NMS) -> Objets detectes
 ```
 
-#### 4.1.3 Données de Sortie par Objet
+#### 4.1.3 Donnees de Sortie par Objet
 ```json
 {
   "class_id": 0,
@@ -153,117 +154,130 @@ Image → Prétraitement → YOLOv8n → Post-traitement (NMS) → Objets détec
 }
 ```
 
-### 4.2 Module d'Extraction de Caractéristiques
+### 4.2 Module d'Extraction de Caracteristiques
 
 #### 4.2.1 Descripteurs de Couleur
 
 | Descripteur | Description | Dimension |
 |-------------|-------------|-----------|
-| Histogramme RGB | Distribution des couleurs dans l'espace RGB | 256 × 3 = 768 |
-| Histogramme HSV | Distribution dans l'espace HSV | 180 + 256 + 256 = 692 |
-| Couleurs Dominantes | K-means clustering (k=5) sur les pixels | 5 × 3 = 15 + poids |
-| Moments de Couleur | Moyenne, écart-type, skewness par canal | 3 × 3 = 9 |
+| Histogramme HSV | Distribution dans l'espace HSV | Variable |
+| Couleurs Dominantes | K-means clustering (k=5) sur les pixels | 5 x 3 = 15 + poids |
+| Moments de Couleur | Moyenne, ecart-type, skewness par canal | 3 x 3 = 9 |
 
 #### 4.2.2 Descripteurs de Texture
 
 | Descripteur | Description | Dimension |
 |-------------|-------------|-----------|
-| **Tamura** | Coarseness, Contrast, Directionality, Line-likeness, Regularity, Roughness | 6 |
-| **Filtres de Gabor** | Réponses à différentes fréquences et orientations (4 échelles × 6 orientations) | 24 × 2 = 48 |
-| LBP (Local Binary Pattern) | Histogramme des patterns locaux | 256 |
-| GLCM | Gray-Level Co-occurrence Matrix features | 4 × 4 = 16 |
+| Tamura | Coarseness, Contrast, Directionality | 6 |
+| Filtres de Gabor | Reponses a differentes frequences et orientations (4 echelles x 6 orientations) | 48 |
+| LBP | Local Binary Pattern - histogramme des patterns locaux | 256 |
+| GLCM | Gray-Level Co-occurrence Matrix features | 16 |
 
 #### 4.2.3 Descripteurs de Forme
 
 | Descripteur | Description | Dimension |
 |-------------|-------------|-----------|
-| **Moments de Hu** | 7 moments invariants (translation, rotation, échelle) | 7 |
-| **HOG** (Histogram of Oriented Gradients) | Histogramme des orientations du gradient | Variable |
-| Contour | Périmètre, aire, circularité, solidité | 4 |
-| Descripteurs de Fourier | Coefficients de la transformée de Fourier du contour | Variable |
+| Moments de Hu | 7 moments invariants (translation, rotation, echelle) | 7 |
+| HOG | Histogram of Oriented Gradients | Variable |
+| Contour | Perimetre, aire, circularite, solidite | 4 |
 
-#### 4.2.4 Vecteur de Caractéristiques Final
+#### 4.2.4 Vecteur de Caracteristiques Final
+
+Le vecteur combine tous les descripteurs pour former une representation complete de chaque objet detecte:
 
 ```
 Vecteur = [Couleur | Texture | Forme]
-        = [Hist_HSV | Couleurs_Dom | Moments_Couleur | Tamura | Gabor | LBP | Hu | HOG]
+        = [Hist_HSV | Couleurs_Dom | Moments_Couleur | Tamura | Gabor | LBP | GLCM | Hu | Contour]
 ```
 
-### 4.3 Module de Recherche par Similarité
+### 4.3 Module de Recherche par Similarite
 
-#### 4.3.1 Métriques de Distance
+#### 4.3.1 Metriques de Distance
 
-| Métrique | Formule | Usage |
-|----------|---------|-------|
-| Distance Euclidienne | $d(x,y) = \sqrt{\sum_{i}(x_i - y_i)^2}$ | Général |
-| Distance Cosinus | $d(x,y) = 1 - \frac{x \cdot y}{\|x\| \|y\|}$ | Vecteurs normalisés |
-| Distance de Manhattan | $d(x,y) = \sum_{i}|x_i - y_i|$ | Histogrammes |
-| Chi-Square | $\chi^2 = \sum_{i}\frac{(x_i - y_i)^2}{x_i + y_i}$ | Histogrammes |
-| Intersection d'Histogrammes | $I(H_1, H_2) = \sum_i \min(H_1(i), H_2(i))$ | Histogrammes |
+| Metrique | Usage |
+|----------|-------|
+| Distance Cosinus | Vecteurs normalises (par defaut) |
+| Distance Euclidienne | General |
+| Distance de Manhattan | Histogrammes |
+| Chi-Square | Histogrammes |
+| Intersection d'Histogrammes | Histogrammes |
 
-#### 4.3.2 Processus de Recherche
+#### 4.3.2 Processus de Recherche Base sur les Objets
 
 ```
-1. Image Requête → Détection YOLO → Objets détectés
-2. Sélection d'un objet par l'utilisateur
-3. Extraction des descripteurs de l'objet sélectionné
-4. Calcul des distances avec tous les objets indexés
-5. Tri par similarité (distance croissante)
+1. Image Requete -> Detection YOLO -> Objets detectes
+2. Extraction des descripteurs pour chaque objet detecte
+3. Recherche dans l'index: filtrage par classe d'objet
+4. Calcul des distances avec les objets de meme classe
+5. Agregation des scores par image
 6. Retour des K images les plus similaires
 ```
+
+#### 4.3.3 Caracteristiques Cles
+
+- Filtrage par classe: Une image de cheval ne retourne que des images contenant des chevaux
+- Index persistant: L'index est sauvegarde en JSON et survit aux redemarrages
+- Indexation automatique: Chaque image uploadee est automatiquement indexee
 
 ---
 
 ## 5. API REST (Flask)
 
-### 5.1 Endpoints
+### 5.1 Endpoints de Detection
 
-#### 5.1.1 Détection d'Objets
-
-| Méthode | Endpoint | Description |
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/detect` | Détecter les objets dans une image |
-| POST | `/api/detect/batch` | Détecter les objets dans plusieurs images |
+| POST | /api/detect | Detecter les objets dans une image |
+| POST | /api/detect/batch | Detection par lot |
 
-#### 5.1.2 Extraction de Descripteurs
+### 5.2 Endpoints d'Extraction de Descripteurs
 
-| Méthode | Endpoint | Description |
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/descriptors/extract` | Extraire les descripteurs d'une image |
-| POST | `/api/descriptors/extract/object` | Extraire les descripteurs d'un objet (crop) |
-| GET | `/api/descriptors/{image_id}` | Récupérer les descripteurs stockés |
+| POST | /api/descriptors/extract | Extraire les descripteurs d'une image |
+| POST | /api/descriptors/extract/object | Extraire les descripteurs d'un objet (crop) |
 
-#### 5.1.3 Recherche par Similarité
+### 5.3 Endpoints de Gestion de l'Index
 
-| Méthode | Endpoint | Description |
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/search/similar` | Rechercher des images similaires |
-| POST | `/api/search/by-object` | Rechercher par objet spécifique |
+| POST | /api/index/add | Ajouter une image a l'index |
+| POST | /api/index/build | Construire l'index a partir de plusieurs images |
+| GET | /api/index/stats | Statistiques de l'index |
+| DELETE | /api/index/clear | Vider l'index |
 
-#### 5.1.4 Gestion des Images
+### 5.4 Endpoints de Recherche
 
-| Méthode | Endpoint | Description |
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/images/upload` | Uploader une ou plusieurs images |
-| DELETE | `/api/images/{image_id}` | Supprimer une image |
-| GET | `/api/images/{image_id}` | Récupérer une image |
+| POST | /api/search/by-object | Recherche par objets detectes (principal) |
+| POST | /api/search/similar | Recherche legacy par similarite |
 
-#### 5.1.5 Transformations
+### 5.5 Endpoints de Gestion des Images
 
-| Méthode | Endpoint | Description |
+| Methode | Endpoint | Description |
 |---------|----------|-------------|
-| POST | `/api/transform/crop` | Recadrer une image |
-| POST | `/api/transform/resize` | Redimensionner une image |
-| POST | `/api/transform/rotate` | Pivoter une image |
+| POST | /api/images/upload | Uploader une image |
+| GET | /api/images/{id} | Recuperer une image |
+| DELETE | /api/images/{id} | Supprimer une image |
 
-### 5.2 Format des Réponses
+### 5.6 Endpoints de Transformations
+
+| Methode | Endpoint | Description |
+|---------|----------|-------------|
+| POST | /api/transform/crop | Recadrer une image |
+| POST | /api/transform/resize | Redimensionner une image |
+| POST | /api/transform/rotate | Pivoter une image |
+| POST | /api/transform/flip | Retourner une image |
+
+### 5.7 Format des Reponses
 
 ```json
 {
   "success": true,
   "data": { ... },
   "message": "Operation completed successfully",
-  "timestamp": "2025-12-18T10:30:00Z"
+  "timestamp": "2025-01-01T10:30:00Z"
 }
 ```
 
@@ -271,64 +285,66 @@ Vecteur = [Couleur | Texture | Forme]
 
 ## 6. Application Web (Django)
 
-### 6.1 Fonctionnalités
+### 6.1 Fonctionnalites Implementees
 
 #### 6.1.1 Gestion des Images
-- [ ] Upload d'images (simple et multiple)
-- [ ] Téléchargement d'images
-- [ ] Suppression d'images
-- [ ] Galerie avec pagination
-- [ ] Filtrage par catégorie
+- [x] Upload d'images (simple et multiple)
+- [x] Telechargement d'images
+- [x] Suppression d'images (simple et par lot)
+- [x] Galerie avec pagination
+- [x] Filtrage par categorie
 
 #### 6.1.2 Transformations d'Images
-- [ ] Recadrage (Crop)
-- [ ] Redimensionnement (Resize)
-- [ ] Rotation
-- [ ] Sauvegarde comme nouvelle image
+- [x] Recadrage (Crop)
+- [x] Redimensionnement (Resize)
+- [x] Rotation
+- [x] Retournement (Flip)
 
-#### 6.1.3 Détection et Analyse
-- [ ] Détection des objets (visualisation des bounding boxes)
-- [ ] Affichage des descripteurs calculés
-- [ ] Visualisation des caractéristiques (histogrammes, etc.)
+#### 6.1.3 Detection et Analyse
+- [x] Detection automatique des objets a l'upload
+- [x] Visualisation des bounding boxes
+- [x] Affichage des descripteurs extraits
+- [x] Indexation automatique pour la recherche
 
-#### 6.1.4 Recherche par Similarité
-- [ ] Sélection d'une image requête
-- [ ] Sélection d'un objet dans l'image
-- [ ] Affichage des résultats triés par pertinence
-- [ ] Configuration des paramètres de recherche
+#### 6.1.4 Recherche par Similarite
+- [x] Recherche par image de la galerie
+- [x] Upload d'une image requete externe
+- [x] Configuration des parametres (metrique, nombre de resultats)
+- [x] Affichage des resultats avec scores de similarite
 
 ### 6.2 Structure du Projet Django
 
 ```
 django_app/
-├── manage.py
-├── config/
-│   ├── settings.py
-│   ├── urls.py
-│   └── wsgi.py
-├── core/
-│   ├── models.py          # Modèles de données
-│   ├── views.py           # Vues principales
-│   ├── urls.py            # Routes
-│   └── forms.py           # Formulaires
-├── api_client/
-│   └── flask_client.py    # Client pour l'API Flask
-├── templates/
-│   ├── base.html
-│   ├── gallery.html
-│   ├── upload.html
-│   ├── image_detail.html
-│   ├── search.html
-│   └── results.html
-├── static/
-│   ├── css/
-│   ├── js/
-│   └── images/
-└── media/
-    └── uploads/
++-- manage.py
++-- config/
+|   +-- settings.py
+|   +-- urls.py
+|   +-- wsgi.py
++-- core/
+|   +-- models.py          # Image, DetectedObject, Descriptor, SearchHistory
+|   +-- views.py           # Vues principales
+|   +-- api_client.py      # Client pour l'API Flask
+|   +-- forms.py           # Formulaires
+|   +-- urls.py            # Routes
++-- templates/
+|   +-- core/
+|       +-- base.html
+|       +-- home.html
+|       +-- gallery.html
+|       +-- upload.html
+|       +-- image_detail.html
+|       +-- search.html
+|       +-- object_search_results.html
+|       +-- transform.html
++-- static/
+|   +-- css/
+|   +-- js/
++-- media/
+    +-- uploads/
 ```
 
-### 6.3 Modèles de Données
+### 6.3 Modeles de Donnees
 
 ```python
 class Image(models.Model):
@@ -338,9 +354,12 @@ class Image(models.Model):
     uploaded_at = models.DateTimeField(auto_now_add=True)
     width = models.IntegerField()
     height = models.IntegerField()
+    file_size = models.IntegerField()
+    features_extracted = models.BooleanField(default=False)
 
 class DetectedObject(models.Model):
     image = models.ForeignKey(Image, on_delete=models.CASCADE)
+    class_id = models.IntegerField()
     class_name = models.CharField(max_length=100)
     confidence = models.FloatField()
     x_min = models.IntegerField()
@@ -350,51 +369,63 @@ class DetectedObject(models.Model):
 
 class Descriptor(models.Model):
     detected_object = models.OneToOneField(DetectedObject, on_delete=models.CASCADE)
-    color_histogram = models.BinaryField()      # Serialized numpy array
-    dominant_colors = models.JSONField()
-    tamura_features = models.JSONField()
-    gabor_features = models.BinaryField()
-    hu_moments = models.JSONField()
-    # ... autres descripteurs
+    dominant_colors = models.JSONField(null=True)
+    color_moments = models.JSONField(null=True)
+    tamura_features = models.JSONField(null=True)
+    glcm_features = models.JSONField(null=True)
+    hu_moments = models.JSONField(null=True)
+    contour_features = models.JSONField(null=True)
+
+class SearchHistory(models.Model):
+    query_image = models.ForeignKey(Image, on_delete=models.SET_NULL, null=True)
+    metric_used = models.CharField(max_length=50)
+    num_results = models.IntegerField()
+    created_at = models.DateTimeField(auto_now_add=True)
 ```
 
 ---
 
-## 7. Entraînement du Modèle YOLOv8n
+## 7. Entrainement du Modele YOLOv8n
 
-### 7.1 Préparation des Données
+### 7.1 Preparation des Donnees
 
 #### 7.1.1 Conversion du Format
-- **Entrée**: Pascal VOC (XML)
-- **Sortie**: YOLO format (TXT)
+- Entree: Pascal VOC (XML)
+- Sortie: YOLO format (TXT)
 
 ```
 # Format YOLO (une ligne par objet)
 <class_id> <x_center> <y_center> <width> <height>
-# Valeurs normalisées [0, 1]
+# Valeurs normalisees [0, 1]
 ```
 
-#### 7.1.2 Structure pour l'Entraînement
+#### 7.1.2 Structure pour l'Entrainement
 
 ```
-yolo_dataset/
-├── train/
-│   ├── images/
-│   └── labels/
-├── val/
-│   ├── images/
-│   └── labels/
-└── data.yaml
+yolo_training/
++-- dataset/
+|   +-- train/
+|   |   +-- images/
+|   |   +-- labels/
+|   +-- val/
+|       +-- images/
+|       +-- labels/
++-- data.yaml
++-- convert_annotations.py
++-- train.py
++-- models/
+    +-- yolov8n_finetuned_best.pt
+    +-- yolov8n_finetuned_last.pt
 ```
 
 #### 7.1.3 Fichier data.yaml
 
 ```yaml
-path: ./yolo_dataset
+path: ./dataset
 train: train/images
 val: val/images
 
-nc: 15  # nombre de classes
+nc: 15
 
 names:
   0: pineapple
@@ -414,12 +445,12 @@ names:
   14: tomato
 ```
 
-### 7.2 Configuration de l'Entraînement
+### 7.2 Configuration de l'Entrainement
 
 ```python
 from ultralytics import YOLO
 
-model = YOLO('yolov8n.pt')  # Charger le modèle pré-entraîné
+model = YOLO('yolov8n.pt')
 
 results = model.train(
     data='data.yaml',
@@ -428,7 +459,7 @@ results = model.train(
     batch=16,
     patience=20,
     save=True,
-    device='cuda'  # ou 'cpu'
+    device='cuda'
 )
 ```
 
@@ -437,66 +468,60 @@ results = model.train(
 ## 8. Structure Finale du Projet
 
 ```
-Object_Detection_On_Large_Collection_of_Images/
-│
-├── Data/                           # Dataset ImageNet (15 catégories)
-│   ├── Ananas/
-│   ├── Apple/
-│   └── ...
-│
-├── yolo_training/                  # Entraînement YOLO
-│   ├── dataset/                    # Dataset format YOLO
-│   ├── models/                     # Modèles entraînés
-│   ├── convert_annotations.py     # Conversion VOC → YOLO
-│   └── train.py                    # Script d'entraînement
-│
-├── flask_api/                      # API REST Flask
-│   ├── app.py                      # Point d'entrée
-│   ├── config.py                   # Configuration
-│   ├── requirements.txt
-│   ├── services/
-│   │   ├── detection.py            # Service détection YOLO
-│   │   ├── descriptors.py          # Extraction descripteurs
-│   │   └── similarity.py           # Recherche similarité
-│   ├── resources/
-│   │   ├── detection.py            # Endpoints détection
-│   │   ├── descriptors.py          # Endpoints descripteurs
-│   │   ├── images.py               # Endpoints images
-│   │   └── search.py               # Endpoints recherche
-│   └── utils/
-│       ├── image_processing.py
-│       └── feature_extraction.py
-│
-├── django_app/                     # Application Web Django
-│   ├── manage.py
-│   ├── config/
-│   ├── core/
-│   ├── templates/
-│   ├── static/
-│   └── media/
-│
-├── notebooks/                      # Jupyter notebooks (exploration)
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_feature_extraction.ipynb
-│   └── 03_similarity_search.ipynb
-│
-├── docs/                           # Documentation
-│   └── cahier_de_charge.md
-│
-├── filter_data.py                  # Script de nettoyage des données
-├── requirements.txt                # Dépendances globales
-└── README.md
+Content-Based-Image-Retrieval/
+|
++-- Data/                           # Dataset ImageNet (15 categories)
+|   +-- Ananas/
+|   +-- Apple/
+|   +-- ...
+|
++-- yolo_training/                  # Entrainement YOLO
+|   +-- dataset/                    # Dataset format YOLO
+|   +-- models/                     # Modeles entraines
+|   +-- convert_annotations.py
+|   +-- train.py
+|   +-- data.yaml
+|
++-- flask_api/                      # API REST Flask
+|   +-- app.py
+|   +-- config.py
+|   +-- requirements.txt
+|   +-- services/
+|   |   +-- detection.py
+|   |   +-- descriptors.py
+|   |   +-- similarity.py
+|   |   +-- similarity_objects.py
+|   |   +-- object_index_persistence.py
+|   +-- resources/
+|       +-- detection.py
+|       +-- descriptors.py
+|       +-- images.py
+|       +-- search.py
+|       +-- search_objects.py
+|
++-- django_app/                     # Application Web Django
+|   +-- manage.py
+|   +-- config/
+|   +-- core/
+|   +-- templates/
+|   +-- static/
+|   +-- media/
+|
++-- filter_data.py
++-- requirements.txt
++-- cahier_de_charge.md
++-- README.md
 ```
 
 ---
 
-## 9. Dépendances
+## 9. Dependances
 
 ### 9.1 Python (requirements.txt)
 
 ```
 # Deep Learning & Computer Vision
-ultralytics>=8.0.0          # YOLOv8
+ultralytics>=8.0.0
 torch>=2.0.0
 torchvision>=0.15.0
 opencv-python>=4.8.0
@@ -515,14 +540,9 @@ flask-cors>=4.0.0
 
 # Django Web App
 django>=5.0
-django-cors-headers>=4.3.0
 requests>=2.31.0
 
-# Database
-psycopg2-binary>=2.9.9      # PostgreSQL (production)
-
 # Utilities
-python-dotenv>=1.0.0
 tqdm>=4.66.0
 matplotlib>=3.8.0
 ```
@@ -531,34 +551,35 @@ matplotlib>=3.8.0
 
 ## 10. Livrables
 
-1. **Code Source**
-   - API Flask fonctionnelle
+1. Code Source
+   - API Flask fonctionnelle avec index persistant
    - Application Django fonctionnelle
-   - Scripts d'entraînement YOLO
+   - Scripts d'entrainement YOLO
+   - Scripts de conversion et preparation des donnees
 
-2. **Modèle Entraîné**
-   - Modèle YOLOv8n fine-tuné sur les 15 classes
+2. Modele Entraine
+   - Modele YOLOv8n fine-tune sur les 15 classes (yolov8n_finetuned_best.pt)
 
-3. **Documentation**
+3. Documentation
    - Cahier de charge (ce document)
-   - README avec instructions d'installation
-   - Documentation des API (Swagger/OpenAPI)
+   - README avec instructions d'installation et d'utilisation
 
-4. **Base de Données**
-   - Images indexées avec descripteurs pré-calculés
-
----
-
-## 11. Références
-
-1. **YOLOv8**: https://docs.ultralytics.com/
-2. **ImageNet**: https://www.image-net.org/
-3. **Django**: https://docs.djangoproject.com/
-4. **Flask-RESTful**: https://flask-restful.readthedocs.io/
-5. **OpenCV**: https://docs.opencv.org/
-6. **scikit-image**: https://scikit-image.org/docs/
+4. Base de Donnees
+   - Schema SQLite avec images, objets detectes et descripteurs
+   - Index JSON persistant pour la recherche rapide
 
 ---
 
-*Document créé le: 18 Décembre 2025*
-*Dernière mise à jour: 18 Décembre 2025*
+## 11. References
+
+1. YOLOv8: https://docs.ultralytics.com/
+2. ImageNet: https://www.image-net.org/
+3. Django: https://docs.djangoproject.com/
+4. Flask-RESTful: https://flask-restful.readthedocs.io/
+5. OpenCV: https://docs.opencv.org/
+6. scikit-image: https://scikit-image.org/docs/
+
+---
+
+Document cree le: 18 Decembre 2025
+Derniere mise a jour: 1 Janvier 2026

@@ -18,23 +18,28 @@
                 <h6 class="mb-0"><i class="bi bi-image"></i> Query Image</h6>
             </div>
             <div class="card-body text-center">
-                {% if query_image_url %}
+                {% if query_image %}
+                <img src="{{ query_image.file.url }}" class="img-fluid rounded mb-2" alt="Query Image">
+                {% elif query_image_url %}
                 <img src="{{ query_image_url }}" class="img-fluid rounded mb-2" alt="Query Image">
                 {% endif %}
-                {% if object_bbox %}
+                {% if query_classes %}
                 <div class="mt-2">
-                    <span class="badge bg-info">Object Region: {{ object_bbox.x_min }}, {{ object_bbox.y_min }}, {{ object_bbox.x_max }}, {{ object_bbox.y_max }}</span>
+                    <small class="text-muted d-block mb-1">Detected Objects:</small>
+                    {% for class_name in query_classes %}
+                    <span class="badge bg-info me-1 mb-1">{{ class_name }}</span>
+                    {% endfor %}
                 </div>
                 {% endif %}
             </div>
             <ul class="list-group list-group-flush">
                 <li class="list-group-item d-flex justify-content-between">
                     <small>Descriptor</small>
-                    <strong class="small">{{ descriptor_type }}</strong>
+                    <strong class="small">{{ descriptor_type|default:"object" }}</strong>
                 </li>
                 <li class="list-group-item d-flex justify-content-between">
                     <small>Distance</small>
-                    <strong class="small">{{ distance_metric }}</strong>
+                    <strong class="small">{{ distance_metric|default:metric }}</strong>
                 </li>
                 <li class="list-group-item d-flex justify-content-between">
                     <small>Results</small>
@@ -63,7 +68,7 @@
                 <div class="card h-100 result-card">
                     <div class="position-relative">
                         <a href="{% url 'core:image_detail' result.image.id %}">
-                            <img src="{{ result.image.image.url }}" class="card-img-top" alt="{{ result.image.original_filename }}">
+                            <img src="{{ result.image.file.url }}" class="card-img-top" alt="{{ result.image.filename }}">
                         </a>
                         <span class="position-absolute top-0 start-0 badge bg-primary m-2">
                             #{{ forloop.counter }}
@@ -73,13 +78,20 @@
                         </span>
                     </div>
                     <div class="card-body p-2">
-                        <p class="card-text small text-truncate mb-1" title="{{ result.image.original_filename }}">
-                            {{ result.image.original_filename }}
+                        <p class="card-text small text-truncate mb-1" title="{{ result.image.filename }}">
+                            {{ result.image.filename }}
                         </p>
-                        <div class="progress" style="height: 6px;">
+                        <div class="progress mb-1" style="height: 6px;">
                             <div class="progress-bar bg-success" style="width: {{ result.similarity }}%"></div>
                         </div>
-                        <small class="text-muted">Similarity: {{ result.similarity|floatformat:2 }}%</small>
+                        <small class="text-muted d-block">Similarity: {{ result.similarity|floatformat:2 }}%</small>
+                        {% if result.matching_classes %}
+                        <div class="mt-1">
+                            {% for class_name in result.matching_classes %}
+                            <span class="badge bg-secondary me-1">{{ class_name }}</span>
+                            {% endfor %}
+                        </div>
+                        {% endif %}
                     </div>
                     <div class="card-footer p-1">
                         <div class="btn-group btn-group-sm w-100">

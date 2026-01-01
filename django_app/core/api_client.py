@@ -181,16 +181,17 @@ class FlaskAPIClient:
         else:
             return {'success': False, 'error': 'No image provided'}
     
-    def search_by_object(self, image_path, object_id=0, top_k=10, metric='cosine', confidence=0.25):
+    def search_by_object(self, image_path, query_image_id=None, top_k=10, metric='cosine', confidence=0.25, aggregation='best_match'):
         """
         Search for images with similar objects.
         
         Args:
             image_path: Query image path
-            object_id: Index of object to search for
+            query_image_id: ID of query image to exclude from results
             top_k: Number of results
             metric: Distance metric
             confidence: Detection confidence
+            aggregation: Score aggregation method
             
         Returns:
             API response with results
@@ -198,11 +199,13 @@ class FlaskAPIClient:
         with open(image_path, 'rb') as f:
             files = {'image': f}
             data = {
-                'object_id': object_id,
                 'top_k': top_k,
                 'metric': metric,
-                'confidence': confidence
+                'confidence': confidence,
+                'aggregation': aggregation
             }
+            if query_image_id is not None:
+                data['query_image_id'] = str(query_image_id)
             return self._make_request('POST', '/search/by-object', files=files, data=data)
     
     # Image transformation endpoints
@@ -257,13 +260,42 @@ class FlaskAPIClient:
     # Index management
     
     def add_to_index(self, image_path, image_id, metadata=None):
-        """Add image to similarity search index"""
+        """Add image to similarity search index (legacy endpoint)"""
         with open(image_path, 'rb') as f:
             files = {'image': f}
             data = {'image_id': image_id}
             if metadata:
                 data['metadata'] = json.dumps(metadata)
             return self._make_request('POST', '/search/index', files=files, data=data)
+    
+    def add_to_object_index(self, image_path, image_id, confidence=0.25):
+        """
+        Add image to object-based search index.
+        This properly detects objects, extracts features, and indexes them.
+        
+        Args:
+            image_path: Path to image file
+            image_id: Unique ID for this image
+            confidence: Detection confidence threshold
+            
+        Returns:
+            API response with indexed objects and extracted descriptors
+        """
+        with open(image_path, 'rb') as f:
+            files = {'image': f}
+            data = {
+                'image_id': str(image_id),
+                'confidence': confidence
+            }
+            return self._make_request('POST', '/index/add', files=files, data=data)
+    
+    def get_index_stats(self):
+        """Get object-based index statistics"""
+        return self._make_request('GET', '/index/stats')
+    
+    def clear_object_index(self):
+        """Clear the object-based search index"""
+        return self._make_request('DELETE', '/index/clear')
     
     def get_index_info(self):
         """Get similarity index information"""

@@ -388,3 +388,146 @@ class IndexClearResource(Resource):
                 'message': str(e),
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }, 500
+
+
+class IndexAddImageResource(Resource):
+    """
+    POST /api/index/add
+    Add a single image to the object-based search index.
+    This is used when uploading images to automatically index them.
+    """
+    
+    def post(self):
+        """
+        Add a single image to the index by detecting objects and extracting features.
+        
+        Accepts:
+            - image: Image file (multipart/form-data)
+            - image_id: Unique ID for this image (required)
+            - confidence: Detection confidence threshold (default 0.25)
+        
+        Returns:
+            Indexed objects info and extracted descriptors
+        """
+        import traceback
+        
+        try:
+            image = decode_image(request)
+            
+            if image is None:
+                return {
+                    'success': False,
+                    'message': 'No valid image provided'
+                }, 400
+            
+            # Get image_id from form data
+            image_id = request.form.get('image_id')
+            if not image_id:
+                return {
+                    'success': False,
+                    'message': 'image_id is required'
+                }, 400
+            
+            confidence = float(request.form.get('confidence', 0.25))
+            
+            # Detect objects in the image
+            detections = detection_service.detect(image, confidence_threshold=confidence)
+            
+            if not detections:
+                return {
+                    'success': True,
+                    'data': {
+                        'image_id': image_id,
+                        'indexed_objects': 0,
+                        'detections': [],
+                        'descriptors': [],
+                        'message': 'No objects detected in image'
+                    },
+                    'timestamp': datetime.utcnow().isoformat() + 'Z'
+                }, 200
+            
+            # Extract and index each detected object
+            indexed_objects = []
+            descriptors_list = []
+            
+            for obj_idx, detection in enumerate(detections):
+                bbox = detection['bbox']
+                
+                # Crop object region
+                cropped = image[
+                    bbox['y_min']:bbox['y_max'],
+                    bbox['x_min']:bbox['x_max']
+                ]
+                
+                if cropped.size == 0:
+                    continue
+                
+                # Extract feature vector (combined descriptor)
+                feature_vector = feature_extractor.extract_feature_vector(cropped)
+                
+                # Extract detailed descriptors for storage
+                descriptors = feature_extractor.extract_all_features(cropped)
+                
+                # Create unique object ID
+                object_id = f"{image_id}_obj_{obj_idx}"
+                
+                # Add to index (automatically persisted)
+                object_similarity_service.add_object_to_index(
+                    object_id=object_id,
+                    feature_vector=feature_vector,
+                    metadata={
+                        'image_id': image_id,
+                        'class_name': detection['class_name'],
+                        'class_id': detection['class_id'],
+                        'confidence': detection['confidence'],
+                        'bbox': bbox
+                    }
+                )
+                
+                indexed_objects.append({
+                    'object_id': object_id,
+                    'class_name': detection['class_name'],
+                    'class_id': detection['class_id'],
+                    'confidence': detection['confidence'],
+                    'bbox': bbox
+                })
+                
+                # Prepare descriptors for response
+                descriptors_list.append({
+                    'object_id': object_id,
+                    'class_name': detection['class_name'],
+                    'class_id': detection['class_id'],
+                    'bbox': bbox,
+                    'descriptors': {
+                        'dominant_colors': descriptors.get('dominant_colors'),
+                        'color_moments': descriptors.get('color_moments'),
+                        'tamura': descriptors.get('tamura'),
+                        'glcm': descriptors.get('glcm'),
+                        'hu_moments': descriptors.get('hu_moments'),
+                        'contour': descriptors.get('contour'),
+                    },
+                    'feature_vector_length': len(feature_vector)
+                })
+            
+            stats = object_similarity_service.get_statistics()
+            
+            return {
+                'success': True,
+                'data': {
+                    'image_id': image_id,
+                    'indexed_objects': len(indexed_objects),
+                    'objects': indexed_objects,
+                    'descriptors': descriptors_list,
+                    'index_stats': stats,
+                    'message': f'Successfully indexed {len(indexed_objects)} objects'
+                },
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }, 200
+            
+        except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'traceback': traceback.format_exc(),
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }, 500
