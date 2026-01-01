@@ -1,5 +1,6 @@
 """
 Flask REST API - Main Application Entry Point
+WITH PERSISTENT OBJECT-BASED SEARCH!
 """
 
 import os
@@ -41,7 +42,14 @@ def create_app(config_class=None):
     # Health check endpoint
     @app.route('/health')
     def health_check():
-        return {'status': 'healthy', 'message': 'API is running'}
+        from services.similarity_objects import object_similarity_service
+        stats = object_similarity_service.get_statistics()
+        return {
+            'status': 'healthy',
+            'message': 'API is running',
+            'index_loaded': True,
+            'index_stats': stats
+        }
     
     return app
 
@@ -54,7 +62,13 @@ def register_resources(api):
         ObjectDescriptorResource,
         StoredDescriptorResource
     )
-    from resources.search import SimilaritySearchResource, ObjectSearchResource, IndexManagementResource
+    from resources.search import SimilaritySearchResource, IndexManagementResource
+    from resources.search_objects import (
+        ObjectBasedSearchResource, 
+        IndexBuildResource, 
+        IndexStatsResource,
+        IndexClearResource
+    )
     from resources.images import ImageUploadResource, ImageResource, ImageTransformResource
     
     # Detection endpoints
@@ -66,9 +80,14 @@ def register_resources(api):
     api.add_resource(ObjectDescriptorResource, '/descriptors/extract/object')
     api.add_resource(StoredDescriptorResource, '/descriptors/<int:image_id>')
     
-    # Search endpoints
+    # Object-based search endpoints (PRIMARY)
+    api.add_resource(ObjectBasedSearchResource, '/search/by-object')
+    api.add_resource(IndexBuildResource, '/index/build')
+    api.add_resource(IndexStatsResource, '/index/stats')
+    api.add_resource(IndexClearResource, '/index/clear')
+    
+    # Legacy search endpoints
     api.add_resource(SimilaritySearchResource, '/search/similar')
-    api.add_resource(ObjectSearchResource, '/search/by-object')
     api.add_resource(IndexManagementResource, '/search/index')
     
     # Image management endpoints
@@ -110,16 +129,25 @@ app = create_app()
 
 
 if __name__ == '__main__':
-    print("=" * 60)
-    print("Flask REST API for Image Analysis")
-    print("=" * 60)
-    print("Endpoints:")
+    print("=" * 70)
+    print("Flask REST API for Object-Based Image Search")
+    print("=" * 70)
+    print("KEY ENDPOINTS:")
+    print("  POST /api/index/build         - Build persistent search index")
+    print("  GET  /api/index/stats         - View index statistics")
+    print("  POST /api/search/by-object    - Search by object classes")
+    print("  DELETE /api/index/clear       - Clear the index")
+    print("")
+    print("OTHER ENDPOINTS:")
     print("  POST /api/detect              - Detect objects in image")
-    print("  POST /api/detect/batch        - Batch detection")
     print("  POST /api/descriptors/extract - Extract descriptors")
-    print("  POST /api/search/similar      - Find similar images")
     print("  POST /api/images/upload       - Upload images")
-    print("  POST /api/transform/<type>    - Transform image")
-    print("=" * 60)
+    print("  GET  /health                  - Health check")
+    print("=" * 70)
+    print("FEATURES:")
+    print("  ✓ Persistent index (survives restarts)")
+    print("  ✓ Object-class filtering (bus finds only bus)")
+    print("  ✓ Automatic saving on every index operation")
+    print("=" * 70)
     
     app.run(host='0.0.0.0', port=5000, debug=True)

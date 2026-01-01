@@ -438,13 +438,14 @@ class SearchView(TemplateView):
     
     def post(self, request):
         form = SearchForm(request.POST, request.FILES)
-        
+
         if form.is_valid():
             query_image = request.FILES.get('query_image')
             top_k = form.cleaned_data.get('top_k', 10)
             metric = form.cleaned_data.get('metric', 'cosine')
             filter_class = form.cleaned_data.get('filter_class')
-            
+            confidence = float(request.POST.get('confidence', 0.25))
+
             try:
                 # Save temporary query image
                 import tempfile
@@ -452,48 +453,52 @@ class SearchView(TemplateView):
                     for chunk in query_image.chunks():
                         tmp.write(chunk)
                     tmp_path = tmp.name
-                
-                # Search for similar images
-                result = api_client.search_similar(
-                    image_path=tmp_path,
+
+                # Use object-based search as default
+                result = api_client.search_by_object(
+                    tmp_path,
+                    object_id=0,  # 0 means all objects or first object
                     top_k=top_k,
                     metric=metric,
-                    filter_class=filter_class if filter_class else None
+                    confidence=confidence
                 )
-                
+
                 # Clean up temp file
                 os.unlink(tmp_path)
-                
+
                 # Enrich results with Django Image objects
                 api_results = result.get('data', {}).get('results', [])
                 enriched_results = []
                 for r in api_results:
                     try:
-                        img = Image.objects.get(pk=int(r['image_id']))
+                        img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
                         enriched_results.append({
                             'image': img,
                             'similarity': r['similarity'] * 100,  # Convert to percentage
                             'distance': r['distance'],
-                            'class_name': r.get('metadata', {}).get('class_name', 'Unknown')
+                            'class_name': r['metadata'].get('class_name', 'Unknown'),
+                            'object_id': r['object_id'],
+                            'bbox': r['metadata'].get('bbox', {})
                         })
                     except Image.DoesNotExist:
                         continue
-                
+
                 # Prepare context
                 context = self.get_context_data()
                 context['form'] = form
                 context['search_performed'] = True
                 context['results'] = enriched_results
                 context['result_count'] = len(enriched_results)
-                
+
                 # Log search
                 SearchHistory.objects.create(
                     metric_used=metric,
                     num_results=len(enriched_results)
                 )
-                
-                return render(request, self.template_name, context)
-                
+
+                # Render object-based results template
+                return render(request, 'core/object_search_results.html', context)
+
             except Exception as e:
                 messages.error(request, f'Search error: {str(e)}')
         else:
@@ -501,7 +506,7 @@ class SearchView(TemplateView):
             for field, errors in form.errors.items():
                 for error in errors:
                     messages.error(request, f'{field}: {error}')
-        
+
         context = self.get_context_data()
         context['form'] = form
         return render(request, self.template_name, context)
@@ -523,33 +528,53 @@ class SearchByImageView(View):
     
     def post(self, request, pk):
         image = get_object_or_404(Image, pk=pk)
-        
+
         top_k = int(request.POST.get('top_k', 10))
         metric = request.POST.get('metric', 'cosine')
         filter_class = request.POST.get('filter_class')
-        
+        confidence = float(request.POST.get('confidence', 0.25))
+
         try:
-            result = api_client.search_similar(
-                image_path=image.file.path,
+            # Use object-based search as default
+            result = api_client.search_by_object(
+                image.file.path,
+                object_id=0,
                 top_k=top_k,
                 metric=metric,
-                filter_class=filter_class if filter_class else None
+                confidence=confidence
             )
-            
+
             # Log search
             SearchHistory.objects.create(
                 query_image=image,
                 metric_used=metric,
                 num_results=len(result.get('data', {}).get('results', []))
             )
-            
-            return render(request, 'core/search_results.html', {
+
+            # Enrich results for template
+            api_results = result.get('data', {}).get('results', [])
+            enriched_results = []
+            for r in api_results:
+                try:
+                    img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
+                    enriched_results.append({
+                        'image': img,
+                        'similarity': r['similarity'] * 100,
+                        'distance': r['distance'],
+                        'class_name': r['metadata'].get('class_name', 'Unknown'),
+                        'object_id': r['object_id'],
+                        'bbox': r['metadata'].get('bbox', {})
+                    })
+                except Image.DoesNotExist:
+                    continue
+
+            return render(request, 'core/object_search_results.html', {
                 'query_image': image,
-                'results': result.get('data', {}).get('results', []),
+                'results': enriched_results,
                 'metric': metric,
                 'top_k': top_k
             })
-            
+
         except Exception as e:
             messages.error(request, f'Search error: {str(e)}')
             return redirect('core:search_by_image', pk=pk)
@@ -564,23 +589,51 @@ class ObjectSearchView(View):
             object_id = int(request.POST.get('object_id', 0))
             top_k = int(request.POST.get('top_k', 10))
             metric = request.POST.get('metric', 'cosine')
-            
+            confidence = float(request.POST.get('confidence', 0.25))
+
             image = get_object_or_404(Image, pk=image_id)
-            
+
             result = api_client.search_by_object(
                 image.file.path,
                 object_id=object_id,
                 top_k=top_k,
-                metric=metric
+                metric=metric,
+                confidence=confidence
             )
-            
-            return JsonResponse(result)
-            
+
+            # Prepare enriched results for template
+            api_results = result.get('data', {}).get('results', [])
+            enriched_results = []
+            for r in api_results:
+                try:
+                    img = Image.objects.get(pk=int(r['metadata'].get('image_id', 0)))
+                    enriched_results.append({
+                        'image': img,
+                        'similarity': r['similarity'] * 100,  # Convert to percentage
+                        'distance': r['distance'],
+                        'class_name': r['metadata'].get('class_name', 'Unknown'),
+                        'object_id': r['object_id'],
+                        'bbox': r['metadata'].get('bbox', {})
+                    })
+                except Image.DoesNotExist:
+                    continue
+
+            # Query image URL
+            query_image_url = image.file.url if hasattr(image.file, 'url') else ''
+
+            context = {
+                'query_image': image,
+                'query_image_url': query_image_url,
+                'results': enriched_results,
+                'descriptor_type': 'object',
+                'distance_metric': metric,
+                'object_bbox': None,  # Could be set if you want to highlight the query object
+            }
+            return render(request, 'core/object_search_results.html', context)
+
         except Exception as e:
-            return JsonResponse({
-                'success': False,
-                'error': str(e)
-            })
+            messages.error(request, f'Object search error: {str(e)}')
+            return redirect('core:search')
 
 
 class TransformView(View):

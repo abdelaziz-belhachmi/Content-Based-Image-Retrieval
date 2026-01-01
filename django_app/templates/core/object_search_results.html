@@ -1,0 +1,110 @@
+{% extends 'core/base.html' %}
+
+{% block title %}Object Search Results - CBIR System{% endblock %}
+
+{% block content %}
+<nav aria-label="breadcrumb" class="mb-3">
+    <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{% url 'core:search' %}">Search</a></li>
+        <li class="breadcrumb-item active">Object Results</li>
+    </ol>
+</nav>
+
+<div class="row">
+    <!-- Query Image -->
+    <div class="col-lg-3">
+        <div class="card sticky-top" style="top: 20px;">
+            <div class="card-header">
+                <h6 class="mb-0"><i class="bi bi-image"></i> Query Image</h6>
+            </div>
+            <div class="card-body text-center">
+                {% if query_image_url %}
+                <img src="{{ query_image_url }}" class="img-fluid rounded mb-2" alt="Query Image">
+                {% endif %}
+                {% if object_bbox %}
+                <div class="mt-2">
+                    <span class="badge bg-info">Object Region: {{ object_bbox.x_min }}, {{ object_bbox.y_min }}, {{ object_bbox.x_max }}, {{ object_bbox.y_max }}</span>
+                </div>
+                {% endif %}
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between">
+                    <small>Descriptor</small>
+                    <strong class="small">{{ descriptor_type }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <small>Distance</small>
+                    <strong class="small">{{ distance_metric }}</strong>
+                </li>
+                <li class="list-group-item d-flex justify-content-between">
+                    <small>Results</small>
+                    <strong class="small">{{ results|length }}</strong>
+                </li>
+            </ul>
+            <div class="card-footer">
+                <a href="{% url 'core:search' %}" class="btn btn-outline-primary btn-sm w-100">
+                    <i class="bi bi-arrow-left"></i> New Search
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results -->
+    <div class="col-lg-9">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h4><i class="bi bi-grid-3x3-gap"></i> Similar Objects</h4>
+            <span class="text-muted">Found {{ results|length }} similar objects</span>
+        </div>
+
+        {% if results %}
+        <div class="row">
+            {% for result in results %}
+            <div class="col-md-4 col-sm-6 mb-4">
+                <div class="card h-100 result-card">
+                    <div class="position-relative">
+                        <a href="{% url 'core:image_detail' result.image.id %}">
+                            <img src="{{ result.image.image.url }}" class="card-img-top" alt="{{ result.image.original_filename }}">
+                        </a>
+                        <span class="position-absolute top-0 start-0 badge bg-primary m-2">
+                            #{{ forloop.counter }}
+                        </span>
+                        <span class="position-absolute top-0 end-0 badge bg-success m-2">
+                            {{ result.similarity|floatformat:1 }}%
+                        </span>
+                    </div>
+                    <div class="card-body p-2">
+                        <p class="card-text small text-truncate mb-1" title="{{ result.image.original_filename }}">
+                            {{ result.image.original_filename }}
+                        </p>
+                        <div class="progress" style="height: 6px;">
+                            <div class="progress-bar bg-success" style="width: {{ result.similarity }}%"></div>
+                        </div>
+                        <small class="text-muted">Similarity: {{ result.similarity|floatformat:2 }}%</small>
+                    </div>
+                    <div class="card-footer p-1">
+                        <div class="btn-group btn-group-sm w-100">
+                            <a href="{% url 'core:image_detail' result.image.id %}" class="btn btn-outline-primary">
+                                <i class="bi bi-eye"></i> View
+                            </a>
+                            <a href="{% url 'core:search_by_image' result.image.id %}" class="btn btn-outline-success">
+                                <i class="bi bi-search"></i> Search
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <div class="text-center py-5">
+            <i class="bi bi-search display-1 text-muted"></i>
+            <h4 class="mt-3">No similar objects found</h4>
+            <p class="text-muted">Try a different descriptor type or distance metric.</p>
+            <a href="{% url 'core:search' %}" class="btn btn-primary">
+                <i class="bi bi-arrow-left"></i> Try Again
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
