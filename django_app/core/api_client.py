@@ -208,6 +208,33 @@ class FlaskAPIClient:
                 data['query_image_id'] = str(query_image_id)
             return self._make_request('POST', '/search/by-object', files=files, data=data)
     
+    def search_by_selected_objects(self, image_path, objects, query_image_id=None, top_k=10, metric='cosine', aggregation='best_match'):
+        """
+        Search for images with similar objects using specific selected objects.
+        
+        Args:
+            image_path: Query image path
+            objects: List of object dicts with class_name and bbox
+            query_image_id: ID of query image to exclude from results
+            top_k: Number of results
+            metric: Distance metric
+            aggregation: Score aggregation method
+            
+        Returns:
+            API response with results
+        """
+        with open(image_path, 'rb') as f:
+            files = {'image': f}
+            data = {
+                'objects': json.dumps(objects),
+                'top_k': top_k,
+                'metric': metric,
+                'aggregation': aggregation
+            }
+            if query_image_id is not None:
+                data['query_image_id'] = str(query_image_id)
+            return self._make_request('POST', '/search/by-selected-objects', files=files, data=data)
+    
     # Image transformation endpoints
     
     def transform_image(self, image_path, transform_type, params=None, save=False):

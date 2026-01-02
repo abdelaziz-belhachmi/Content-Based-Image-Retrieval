@@ -33,6 +33,7 @@ urlpatterns = [
     path('search/', views.SearchView.as_view(), name='search'),
     path('search/by-object/', views.ObjectSearchView.as_view(), name='search_by_object'),
     path('search/by-image/<int:pk>/', views.SearchByImageView.as_view(), name='search_by_image'),
+    path('search/by-selected-objects/<int:pk>/', views.SearchBySelectedObjectsView.as_view(), name='search_by_selected_objects'),
     
     # Transform
     path('image/<int:pk>/transform/', views.TransformView.as_view(), name='transform'),

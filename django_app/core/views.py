@@ -663,6 +663,104 @@ class SearchByImageView(View):
             return redirect('core:search_by_image', pk=pk)
 
 
+class SearchBySelectedObjectsView(View):
+    """Search for similar images using specific selected objects from an image"""
+    
+    def post(self, request, pk):
+        image = get_object_or_404(Image, pk=pk)
+        
+        # Get selected object IDs
+        object_ids = request.POST.getlist('object_ids')
+        top_k = int(request.POST.get('top_k', 10))
+        metric = request.POST.get('metric', 'cosine')
+        
+        if not object_ids:
+            messages.error(request, 'Please select at least one object to search.')
+            return redirect('core:image_detail', pk=pk)
+        
+        try:
+            # Get the selected detected objects from the database
+            selected_objects = DetectedObject.objects.filter(
+                id__in=object_ids,
+                image=image
+            )
+            
+            if not selected_objects.exists():
+                messages.error(request, 'Selected objects not found.')
+                return redirect('core:image_detail', pk=pk)
+            
+            # Build objects config for API call
+            objects_config = []
+            for obj in selected_objects:
+                objects_config.append({
+                    'class_name': obj.class_name,
+                    'bbox': {
+                        'x_min': obj.x_min,
+                        'y_min': obj.y_min,
+                        'x_max': obj.x_max,
+                        'y_max': obj.y_max
+                    }
+                })
+            
+            # Call the API with selected objects
+            result = api_client.search_by_selected_objects(
+                image_path=image.file.path,
+                objects=objects_config,
+                query_image_id=image.id,
+                top_k=top_k,
+                metric=metric
+            )
+            
+            # Log search
+            SearchHistory.objects.create(
+                query_image=image,
+                metric_used=metric,
+                num_results=len(result.get('data', {}).get('results', []))
+            )
+            
+            # Check if search was successful
+            if not result.get('success'):
+                messages.error(request, result.get('message', 'Search failed'))
+                return redirect('core:image_detail', pk=pk)
+            
+            # Enrich results for template
+            api_results = result.get('data', {}).get('results', [])
+            query_classes = result.get('data', {}).get('query_classes', [])
+            enriched_results = []
+            
+            for r in api_results:
+                try:
+                    image_id_str = str(r.get('image_id', ''))
+                    
+                    if image_id_str.isdigit():
+                        img = Image.objects.get(pk=int(image_id_str))
+                    else:
+                        continue
+                    
+                    enriched_results.append({
+                        'image': img,
+                        'similarity': r.get('similarity', 0) * 100,
+                        'distance': r.get('score', 0),
+                        'matching_classes': r.get('matching_classes', []),
+                        'num_matching_objects': r.get('num_matching_objects', 0)
+                    })
+                except (Image.DoesNotExist, ValueError):
+                    continue
+            
+            return render(request, 'core/object_search_results.html', {
+                'query_image': image,
+                'results': enriched_results,
+                'query_classes': query_classes,
+                'selected_objects': list(selected_objects),
+                'metric': metric,
+                'top_k': top_k
+            })
+        
+        except Exception as e:
+            messages.error(request, f'Search error: {str(e)}')
+            return redirect('core:image_detail', pk=pk)
+
+
 class ObjectSearchView(View):
     """Search by specific object in an image"""
     

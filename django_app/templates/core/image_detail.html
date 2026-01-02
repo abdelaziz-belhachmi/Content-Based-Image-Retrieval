@@ -17,9 +17,15 @@
             <div class="card-header d-flex justify-content-between align-items-center">
                 <h5 class="mb-0"><i class="bi bi-image"></i> {{ image.original_filename }}</h5>
                 <div class="btn-group btn-group-sm">
+                    {% if detected_objects %}
+                    <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#findSimilarModal">
+                        <i class="bi bi-search"></i> Find Similar
+                    </button>
+                    {% else %}
                     <a href="{% url 'core:search_by_image' image.id %}" class="btn btn-success">
                         <i class="bi bi-search"></i> Find Similar
                     </a>
+                    {% endif %}
                     <a href="{% url 'core:transform' image.id %}" class="btn btn-warning">
                         <i class="bi bi-magic"></i> Transform
                     </a>
@@ -165,6 +171,75 @@
     </div>
 </div>
 
+<!-- Find Similar Modal - Select Objects -->
+{% if detected_objects %}
+<div class="modal fade" id="findSimilarModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title"><i class="bi bi-search"></i> Find Similar Images</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="post" action="{% url 'core:search_by_selected_objects' image.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="mb-3">Select which objects to use for finding similar images:</p>
+                    
+                    <div class="mb-3">
+                        <div class="form-check mb-2">
+                            <input class="form-check-input" type="checkbox" id="selectAllObjects" checked>
+                            <label class="form-check-label fw-bold" for="selectAllObjects">
+                                Select All
+                            </label>
+                        </div>
+                        <hr class="my-2">
+                        {% for obj in detected_objects %}
+                        <div class="form-check">
+                            <input class="form-check-input object-checkbox" type="checkbox" name="object_ids" 
+                                   value="{{ obj.id }}" id="obj_{{ obj.id }}" checked>
+                            <label class="form-check-label d-flex justify-content-between w-100" for="obj_{{ obj.id }}">
+                                <span>
+                                    <span class="color-dot" style="background-color: {{ obj.color }};"></span>
+                                    {{ obj.class_name }}
+                                </span>
+                                <span class="badge bg-secondary">{% widthratio obj.confidence 1 100 %}%</span>
+                            </label>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small">Number of Results</label>
+                            <select class="form-select form-select-sm" name="top_k">
+                                <option value="5">5</option>
+                                <option value="10" selected>10</option>
+                                <option value="20">20</option>
+                                <option value="50">50</option>
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small">Similarity Metric</label>
+                            <select class="form-select form-select-sm" name="metric">
+                                <option value="cosine" selected>Cosine</option>
+                                <option value="euclidean">Euclidean</option>
+                                <option value="manhattan">Manhattan</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="submit" class="btn btn-success" id="searchBtn">
+                        <i class="bi bi-search"></i> Search
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 <!-- Delete Modal -->
 <div class="modal fade" id="deleteModal" tabindex="-1">
     <div class="modal-dialog">
@@ -242,6 +317,35 @@ window.addEventListener('resize', drawBoundingBoxes);
 
 function deleteImage() {
     new bootstrap.Modal(document.getElementById('deleteModal')).show();
+}
+
+// Object selection for Find Similar
+const selectAllCheckbox = document.getElementById('selectAllObjects');
+const objectCheckboxes = document.querySelectorAll('.object-checkbox');
+const searchBtn = document.getElementById('searchBtn');
+
+if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener('change', function() {
+        objectCheckboxes.forEach(cb => cb.checked = this.checked);
+        updateSearchButton();
+    });
+    
+    objectCheckboxes.forEach(cb => {
+        cb.addEventListener('change', function() {
+            const allChecked = Array.from(objectCheckboxes).every(cb => cb.checked);
+            const someChecked = Array.from(objectCheckboxes).some(cb => cb.checked);
+            selectAllCheckbox.checked = allChecked;
+            selectAllCheckbox.indeterminate = someChecked && !allChecked;
+            updateSearchButton();
+        });
+    });
+}
+
+function updateSearchButton() {
+    const anyChecked = Array.from(objectCheckboxes).some(cb => cb.checked);
+    if (searchBtn) {
+        searchBtn.disabled = !anyChecked;
+    }
 }
 </script>
 {% endblock %}

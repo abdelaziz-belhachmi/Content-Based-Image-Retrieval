@@ -4,6 +4,7 @@ NOW WITH PERSISTENT INDEX!
 """
 
 import cv2
+import json
 import numpy as np
 from flask import request
 from flask_restful import Resource
@@ -525,6 +526,169 @@ class IndexAddImageResource(Resource):
             }, 200
             
         except Exception as e:
+            return {
+                'success': False,
+                'message': str(e),
+                'traceback': traceback.format_exc(),
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }, 500
+
+
+class SearchBySelectedObjectsResource(Resource):
+    """
+    POST /api/search/by-selected-objects
+    Search for similar images using specific pre-defined objects with bounding boxes.
+    
+    This endpoint is used when the user has already selected which detected objects
+    to use as query objects (from the image detail page).
+    """
+    
+    def post(self):
+        """
+        Find images containing similar objects to the selected query objects.
+        
+        Accepts:
+            - image: The source image file
+            - objects: JSON string with list of objects to search by:
+                [{"class_name": "tomato", "bbox": {"x_min": 0, "y_min": 0, "x_max": 100, "y_max": 100}}, ...]
+            - query_image_id: Optional ID to exclude from results
+            - top_k: Number of result images (default 10)
+            - metric: Distance metric (default 'cosine')
+            - aggregation: Score aggregation method (default 'best_match')
+        
+        Returns:
+            Images ranked by similarity to the selected objects
+        """
+        try:
+            image = decode_image(request)
+            
+            if image is None:
+                return {'success': False, 'message': 'No valid image provided'}, 400
+            
+            # Get objects configuration
+            if request.is_json:
+                objects_config = request.json.get('objects', [])
+                top_k = int(request.json.get('top_k', 10))
+                metric = request.json.get('metric', 'cosine')
+                aggregation = request.json.get('aggregation', 'best_match')
+                query_image_id = request.json.get('query_image_id')
+            else:
+                objects_json = request.form.get('objects', '[]')
+                try:
+                    objects_config = json.loads(objects_json) if isinstance(objects_json, str) else objects_json
+                except json.JSONDecodeError:
+                    objects_config = []
+                top_k = int(request.form.get('top_k', 10))
+                metric = request.form.get('metric', 'cosine')
+                aggregation = request.form.get('aggregation', 'best_match')
+                query_image_id = request.form.get('query_image_id')
+            
+            if not objects_config:
+                return {'success': False, 'message': 'No objects provided for search'}, 400
+            
+            # Validate parameters
+            valid_aggregations = ['best_match', 'average', 'min_distance', 'any_match']
+            if aggregation not in valid_aggregations:
+                return {
+                    'success': False,
+                    'message': f'Invalid aggregation. Must be one of: {valid_aggregations}'
+                }, 400
+            
+            if metric not in object_similarity_service.SUPPORTED_METRICS:
+                return {
+                    'success': False,
+                    'message': f'Invalid metric. Supported: {object_similarity_service.SUPPORTED_METRICS}'
+                }, 400
+            
+            # Check if index is empty
+            if object_similarity_service.get_index_size() == 0:
+                return {
+                    'success': True,
+                    'data': {
+                        'message': 'Index is empty. Please build the index first.',
+                        'index_size': 0,
+                        'results': []
+                    },
+                    'timestamp': datetime.utcnow().isoformat() + 'Z'
+                }, 200
+            
+            # Extract features for each selected object
+            query_objects = []
+            
+            for obj_config in objects_config:
+                bbox = obj_config.get('bbox', {})
+                class_name = obj_config.get('class_name', 'unknown')
+                
+                x_min = int(bbox.get('x_min', 0))
+                y_min = int(bbox.get('y_min', 0))
+                x_max = int(bbox.get('x_max', image.shape[1]))
+                y_max = int(bbox.get('y_max', image.shape[0]))
+                
+                # Crop object region
+                cropped = image[y_min:y_max, x_min:x_max]
+                
+                if cropped.size == 0:
+                    continue
+                
+                # Extract features
+                feature_vector = feature_extractor.extract_feature_vector(cropped)
+                
+                query_objects.append({
+                    'class_name': class_name,
+                    'bbox': bbox,
+                    'feature_vector': feature_vector
+                })
+            
+            if not query_objects:
+                return {
+                    'success': True,
+                    'data': {
+                        'message': 'Could not extract features from selected objects',
+                        'results': []
+                    },
+                    'timestamp': datetime.utcnow().isoformat() + 'Z'
+                }, 200
+            
+            # Search for images with matching objects
+            results = object_similarity_service.search_by_image_objects(
+                query_objects=query_objects,
+                top_k=top_k,
+                metric=metric,
+                aggregation=aggregation,
+                exclude_image_id=query_image_id
+            )
+            
+            # Get query class names
+            query_classes = list(set([obj['class_name'] for obj in query_objects]))
+            
+            return {
+                'success': True,
+                'data': {
+                    'query_image_size': {
+                        'width': image.shape[1],
+                        'height': image.shape[0]
+                    },
+                    'num_query_objects': len(query_objects),
+                    'query_classes': query_classes,
+                    'selected_objects': [
+                        {'class_name': obj['class_name'], 'bbox': obj['bbox']}
+                        for obj in query_objects
+                    ],
+                    'search_config': {
+                        'metric': metric,
+                        'aggregation': aggregation,
+                        'top_k': top_k
+                    },
+                    'index_stats': object_similarity_service.get_statistics(),
+                    'num_results': len(results),
+                    'results': results,
+                    'explanation': f"Found {len(results)} images containing: {', '.join(query_classes)}"
+                },
+                'timestamp': datetime.utcnow().isoformat() + 'Z'
+            }, 200
+            
+        except Exception as e:
+            import traceback
             return {
                 'success': False,
                 'message': str(e),

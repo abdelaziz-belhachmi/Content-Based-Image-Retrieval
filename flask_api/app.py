@@ -65,6 +65,7 @@ def register_resources(api):
     from resources.search import SimilaritySearchResource, IndexManagementResource
     from resources.search_objects import (
         ObjectBasedSearchResource, 
+        SearchBySelectedObjectsResource,
         IndexBuildResource, 
         IndexStatsResource,
         IndexClearResource,
@@ -83,6 +84,7 @@ def register_resources(api):
     
     # Object-based search endpoints (PRIMARY)
     api.add_resource(ObjectBasedSearchResource, '/search/by-object')
+    api.add_resource(SearchBySelectedObjectsResource, '/search/by-selected-objects')
     api.add_resource(IndexBuildResource, '/index/build')
     api.add_resource(IndexStatsResource, '/index/stats')
     api.add_resource(IndexClearResource, '/index/clear')
