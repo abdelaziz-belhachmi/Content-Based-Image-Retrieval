@@ -263,6 +263,3 @@ Source: ImageNet (15 selected categories)
 6. Use "Find Similar" to search for similar images
 7. Adjust search parameters (metric, number of results)
 
-## License
-
-Academic Project - 2025
