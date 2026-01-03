@@ -46,6 +46,37 @@
                     <strong class="small">{{ results|length }}</strong>
                 </li>
             </ul>
+            
+            <!-- CBIR Evaluation Metrics -->
+            {% if evaluation_metrics %}
+            <div class="card-header bg-light">
+                <h6 class="mb-0"><i class="bi bi-graph-up"></i> CBIR Metrics</h6>
+            </div>
+            <ul class="list-group list-group-flush">
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="fw-bold">P@10</small>
+                        <br><small class="text-muted">Precision</small>
+                    </div>
+                    <span class="badge bg-primary rounded-pill">{{ evaluation_metrics.precision_at_10|default:"0" }}%</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="fw-bold">mAP@50</small>
+                        <br><small class="text-muted">Mean Avg Precision</small>
+                    </div>
+                    <span class="badge bg-success rounded-pill">{{ evaluation_metrics.map_at_50|default:"0" }}%</span>
+                </li>
+                <li class="list-group-item d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="fw-bold">NDCG@10</small>
+                        <br><small class="text-muted">Ranking Quality</small>
+                    </div>
+                    <span class="badge bg-info rounded-pill">{{ evaluation_metrics.ndcg_at_10|default:"0" }}%</span>
+                </li>
+            </ul>
+            {% endif %}
+            
             <div class="card-footer">
                 <a href="{% url 'core:search' %}" class="btn btn-outline-primary btn-sm w-100">
                     <i class="bi bi-arrow-left"></i> New Search

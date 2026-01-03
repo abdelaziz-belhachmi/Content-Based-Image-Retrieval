@@ -100,6 +100,26 @@ class SimilaritySearchResource(Resource):
                 filter_class=filter_class
             )
             
+            # Calculate CBIR evaluation metrics
+            # For image-based search, we use the filter_class as query_class if provided
+            query_class = filter_class if filter_class else ''
+            evaluation_metrics = {}
+            
+            if query_class and results:
+                eval_result = similarity_service.evaluate_search(
+                    query_vector=query_vector,
+                    query_class=query_class,
+                    metric=metric,
+                    top_k=top_k
+                )
+                evaluation_metrics = {
+                    'precision_at_10': round(eval_result.get('precision_at_10', 0) * 100, 2),
+                    'precision_at_5': round(eval_result.get('precision_at_5', 0) * 100, 2),
+                    'map_at_50': round(eval_result.get('ap_at_50', 0) * 100, 2),
+                    'ndcg_at_10': round(eval_result.get('ndcg_at_10', 0) * 100, 2),
+                    'ndcg_at_5': round(eval_result.get('ndcg_at_5', 0) * 100, 2)
+                }
+            
             return {
                 'success': True,
                 'data': {
@@ -111,7 +131,8 @@ class SimilaritySearchResource(Resource):
                     'top_k': top_k,
                     'index_size': similarity_service.get_index_size(),
                     'num_results': len(results),
-                    'results': results
+                    'results': results,
+                    'evaluation_metrics': evaluation_metrics
                 },
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
             }, 200

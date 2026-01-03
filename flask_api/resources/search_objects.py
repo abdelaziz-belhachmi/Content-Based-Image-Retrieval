@@ -170,6 +170,15 @@ class ObjectBasedSearchResource(Resource):
             # Get query class names
             query_classes = list(set([obj['class_name'] for obj in query_objects]))
             
+            # Step 4: Calculate CBIR evaluation metrics
+            evaluation_metrics = object_similarity_service.evaluate_image_objects_search(
+                query_objects=query_objects,
+                metric=metric,
+                top_k=top_k,
+                aggregation=aggregation,
+                exclude_image_id=query_image_id
+            )
+            
             return {
                 'success': True,
                 'data': {
@@ -188,6 +197,13 @@ class ObjectBasedSearchResource(Resource):
                     'index_stats': object_similarity_service.get_statistics(),
                     'num_results': len(results),
                     'results': results,
+                    'evaluation_metrics': {
+                        'precision_at_10': round(evaluation_metrics.get('precision_at_10', 0) * 100, 2),
+                        'precision_at_5': round(evaluation_metrics.get('precision_at_5', 0) * 100, 2),
+                        'map_at_50': round(evaluation_metrics.get('ap_at_50', 0) * 100, 2),
+                        'ndcg_at_10': round(evaluation_metrics.get('ndcg_at_10', 0) * 100, 2),
+                        'ndcg_at_5': round(evaluation_metrics.get('ndcg_at_5', 0) * 100, 2)
+                    },
                     'explanation': f"Found {len(results)} images containing: {', '.join(query_classes)}"
                 },
                 'timestamp': datetime.utcnow().isoformat() + 'Z'
@@ -661,6 +677,15 @@ class SearchBySelectedObjectsResource(Resource):
             # Get query class names
             query_classes = list(set([obj['class_name'] for obj in query_objects]))
             
+            # Calculate CBIR evaluation metrics
+            evaluation_metrics = object_similarity_service.evaluate_image_objects_search(
+                query_objects=query_objects,
+                metric=metric,
+                top_k=top_k,
+                aggregation=aggregation,
+                exclude_image_id=query_image_id
+            )
+            
             return {
                 'success': True,
                 'data': {
@@ -682,6 +707,13 @@ class SearchBySelectedObjectsResource(Resource):
                     'index_stats': object_similarity_service.get_statistics(),
                     'num_results': len(results),
                     'results': results,
+                    'evaluation_metrics': {
+                        'precision_at_10': round(evaluation_metrics.get('precision_at_10', 0) * 100, 2),
+                        'precision_at_5': round(evaluation_metrics.get('precision_at_5', 0) * 100, 2),
+                        'map_at_50': round(evaluation_metrics.get('ap_at_50', 0) * 100, 2),
+                        'ndcg_at_10': round(evaluation_metrics.get('ndcg_at_10', 0) * 100, 2),
+                        'ndcg_at_5': round(evaluation_metrics.get('ndcg_at_5', 0) * 100, 2)
+                    },
                     'explanation': f"Found {len(results)} images containing: {', '.join(query_classes)}"
                 },
                 'timestamp': datetime.utcnow().isoformat() + 'Z'

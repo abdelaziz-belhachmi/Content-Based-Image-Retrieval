@@ -2,12 +2,14 @@
 Enhanced Similarity Search Service - Object-Based Search
 Implements similarity search at the OBJECT level, not image level.
 NOW WITH AUTOMATIC PERSISTENCE!
+Includes CBIR evaluation metrics: P@K, mAP@K, NDCG@K
 """
 
 import numpy as np
 from scipy.spatial.distance import cosine, euclidean, cityblock
 from sklearn.preprocessing import normalize
 from collections import defaultdict
+from typing import List, Dict, Any, Optional
 from .object_index_persistence import save_object_index, load_object_index
 
 
@@ -414,6 +416,476 @@ class ObjectBasedSimilarityService:
                 image_id: len(object_ids)
                 for image_id, object_ids in self.image_to_objects.items()
             }
+        }
+    
+    # =====================
+    # CBIR EVALUATION METRICS
+    # =====================
+    
+    def precision_at_k(self, retrieved_results: List[Dict], query_class: str, k: int = 10) -> float:
+        """
+        Precision@K: Proportion of relevant items in top-K results.
+        
+        For object-based search, relevance is determined by matching object class.
+        
+        P@K = (# of relevant items in top K) / K
+        
+        Args:
+            retrieved_results: List of search results with metadata
+            query_class: The class name of the query object
+            k: Number of top results to consider
+            
+        Returns:
+            Precision@K score (0.0 to 1.0)
+        """
+        if not retrieved_results or k <= 0:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        relevant_count = 0
+        
+        for result in top_k:
+            # Check both 'metadata' dict and 'matching_classes' list
+            metadata = result.get('metadata', {})
+            matching_classes = result.get('matching_classes', [])
+            result_class = metadata.get('class_name', '')
+            
+            if result_class == query_class or query_class in matching_classes:
+                relevant_count += 1
+        
+        return relevant_count / k
+    
+    def precision_at_k_multi_class(self, retrieved_results: List[Dict], 
+                                    query_classes: List[str], k: int = 10) -> float:
+        """
+        Precision@K for multi-object queries.
+        
+        A result is relevant if it contains ANY of the query object classes.
+        
+        Args:
+            retrieved_results: List of search results
+            query_classes: List of class names from query objects
+            k: Number of top results
+            
+        Returns:
+            Precision@K score
+        """
+        if not retrieved_results or k <= 0 or not query_classes:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        query_classes_set = set(query_classes)
+        relevant_count = 0
+        
+        for result in top_k:
+            matching_classes = set(result.get('matching_classes', []))
+            if matching_classes & query_classes_set:
+                relevant_count += 1
+        
+        return relevant_count / k
+    
+    def average_precision_at_k(self, retrieved_results: List[Dict], 
+                               query_class: str, k: int = 50) -> float:
+        """
+        Average Precision@K: Mean of precision values at each relevant item.
+        
+        AP@K = (1/R) * Σ(P@i * rel(i)) for i=1 to K
+        
+        Args:
+            retrieved_results: List of search results
+            query_class: The class name of the query object
+            k: Maximum number of results to consider
+            
+        Returns:
+            AP@K score (0.0 to 1.0)
+        """
+        if not retrieved_results or k <= 0:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        relevant_count = 0
+        precision_sum = 0.0
+        
+        for i, result in enumerate(top_k, 1):
+            metadata = result.get('metadata', {})
+            matching_classes = result.get('matching_classes', [])
+            result_class = metadata.get('class_name', '')
+            
+            if result_class == query_class or query_class in matching_classes:
+                relevant_count += 1
+                precision_at_i = relevant_count / i
+                precision_sum += precision_at_i
+        
+        if relevant_count == 0:
+            return 0.0
+        
+        return precision_sum / relevant_count
+    
+    def average_precision_at_k_multi_class(self, retrieved_results: List[Dict],
+                                            query_classes: List[str], k: int = 50) -> float:
+        """
+        Average Precision@K for multi-object queries.
+        
+        Args:
+            retrieved_results: List of search results
+            query_classes: List of class names from query objects
+            k: Maximum results
+            
+        Returns:
+            AP@K score
+        """
+        if not retrieved_results or k <= 0 or not query_classes:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        query_classes_set = set(query_classes)
+        relevant_count = 0
+        precision_sum = 0.0
+        
+        for i, result in enumerate(top_k, 1):
+            matching_classes = set(result.get('matching_classes', []))
+            if matching_classes & query_classes_set:
+                relevant_count += 1
+                precision_at_i = relevant_count / i
+                precision_sum += precision_at_i
+        
+        if relevant_count == 0:
+            return 0.0
+        
+        return precision_sum / relevant_count
+    
+    def mean_average_precision_at_k(self, query_results_list: List[Dict], k: int = 50) -> float:
+        """
+        Mean Average Precision@K: Average of AP@K across multiple queries.
+        
+        mAP@K = (1/Q) * Σ AP@K(q) for all queries q
+        
+        Args:
+            query_results_list: List of dicts, each containing:
+                - 'results': search results for a query
+                - 'query_class': class name(s) of the query
+            k: Maximum number of results to consider
+            
+        Returns:
+            mAP@K score (0.0 to 1.0)
+        """
+        if not query_results_list:
+            return 0.0
+        
+        ap_scores = []
+        for query_data in query_results_list:
+            query_class = query_data.get('query_class', '')
+            query_classes = query_data.get('query_classes', [])
+            results = query_data.get('results', [])
+            
+            if query_classes:
+                ap = self.average_precision_at_k_multi_class(results, query_classes, k)
+            else:
+                ap = self.average_precision_at_k(results, query_class, k)
+            
+            ap_scores.append(ap)
+        
+        return np.mean(ap_scores) if ap_scores else 0.0
+    
+    def dcg_at_k(self, retrieved_results: List[Dict], query_class: str, k: int = 10) -> float:
+        """
+        Discounted Cumulative Gain@K: Measures ranking quality with position discount.
+        
+        DCG@K = Σ(rel(i) / log2(i+1)) for i=1 to K
+        
+        Args:
+            retrieved_results: List of search results
+            query_class: The class name of the query object
+            k: Number of top results
+            
+        Returns:
+            DCG@K score
+        """
+        if not retrieved_results or k <= 0:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        dcg = 0.0
+        
+        for i, result in enumerate(top_k, 1):
+            metadata = result.get('metadata', {})
+            matching_classes = result.get('matching_classes', [])
+            result_class = metadata.get('class_name', '')
+            
+            if result_class == query_class or query_class in matching_classes:
+                dcg += 1.0 / np.log2(i + 1)
+        
+        return dcg
+    
+    def dcg_at_k_multi_class(self, retrieved_results: List[Dict], 
+                             query_classes: List[str], k: int = 10) -> float:
+        """
+        DCG@K for multi-object queries with graded relevance.
+        
+        Relevance score = number of matching classes (graded relevance).
+        
+        Args:
+            retrieved_results: List of search results
+            query_classes: List of class names from query
+            k: Number of top results
+            
+        Returns:
+            DCG@K score
+        """
+        if not retrieved_results or k <= 0 or not query_classes:
+            return 0.0
+        
+        top_k = retrieved_results[:k]
+        query_classes_set = set(query_classes)
+        dcg = 0.0
+        
+        for i, result in enumerate(top_k, 1):
+            matching_classes = set(result.get('matching_classes', []))
+            # Graded relevance: number of matching classes
+            relevance = len(matching_classes & query_classes_set)
+            if relevance > 0:
+                dcg += relevance / np.log2(i + 1)
+        
+        return dcg
+    
+    def ndcg_at_k(self, retrieved_results: List[Dict], query_class: str,
+                  total_relevant: Optional[int] = None, k: int = 10) -> float:
+        """
+        Normalized Discounted Cumulative Gain@K.
+        
+        NDCG@K = DCG@K / IDCG@K
+        
+        Args:
+            retrieved_results: List of search results
+            query_class: The class name of the query object
+            total_relevant: Total relevant items in database (optional)
+            k: Number of top results
+            
+        Returns:
+            NDCG@K score (0.0 to 1.0)
+        """
+        if not retrieved_results or k <= 0:
+            return 0.0
+        
+        dcg = self.dcg_at_k(retrieved_results, query_class, k)
+        
+        if dcg == 0.0:
+            return 0.0
+        
+        # Count relevant items if not provided
+        if total_relevant is None:
+            total_relevant = sum(
+                1 for result in retrieved_results
+                if result.get('metadata', {}).get('class_name') == query_class
+                or query_class in result.get('matching_classes', [])
+            )
+        
+        # IDCG: best possible DCG
+        num_relevant_in_k = min(total_relevant, k)
+        idcg = sum(1.0 / np.log2(i + 1) for i in range(1, num_relevant_in_k + 1))
+        
+        if idcg == 0.0:
+            return 0.0
+        
+        return dcg / idcg
+    
+    def ndcg_at_k_multi_class(self, retrieved_results: List[Dict],
+                              query_classes: List[str],
+                              total_relevant: Optional[int] = None, 
+                              k: int = 10) -> float:
+        """
+        NDCG@K for multi-object queries with graded relevance.
+        
+        Args:
+            retrieved_results: List of search results
+            query_classes: List of class names from query
+            total_relevant: Total relevant items
+            k: Number of top results
+            
+        Returns:
+            NDCG@K score
+        """
+        if not retrieved_results or k <= 0 or not query_classes:
+            return 0.0
+        
+        dcg = self.dcg_at_k_multi_class(retrieved_results, query_classes, k)
+        
+        if dcg == 0.0:
+            return 0.0
+        
+        # Count relevant items if not provided
+        query_classes_set = set(query_classes)
+        if total_relevant is None:
+            total_relevant = sum(
+                1 for result in retrieved_results
+                if set(result.get('matching_classes', [])) & query_classes_set
+            )
+        
+        # IDCG with max relevance (all classes match)
+        max_relevance = len(query_classes)
+        num_relevant_in_k = min(total_relevant, k)
+        idcg = sum(max_relevance / np.log2(i + 1) for i in range(1, num_relevant_in_k + 1))
+        
+        if idcg == 0.0:
+            return 0.0
+        
+        return dcg / idcg
+    
+    def evaluate_object_search(self, query_vector, query_class: str,
+                               metric: str = 'cosine', top_k: int = 50,
+                               total_relevant: Optional[int] = None) -> Dict[str, float]:
+        """
+        Perform object search and calculate all CBIR evaluation metrics.
+        
+        Args:
+            query_vector: Feature vector of the query object
+            query_class: Class name of the query object
+            metric: Distance metric
+            top_k: Maximum results
+            total_relevant: Total relevant in database
+            
+        Returns:
+            Dict with all evaluation metrics
+        """
+        results = self.search_by_object(query_vector, query_class, top_k=top_k, metric=metric)
+        
+        return {
+            'precision_at_10': self.precision_at_k(results, query_class, k=10),
+            'precision_at_5': self.precision_at_k(results, query_class, k=5),
+            'ap_at_50': self.average_precision_at_k(results, query_class, k=50),
+            'ndcg_at_10': self.ndcg_at_k(results, query_class, total_relevant, k=10),
+            'ndcg_at_5': self.ndcg_at_k(results, query_class, total_relevant, k=5),
+            'num_results': len(results),
+            'query_class': query_class
+        }
+    
+    def evaluate_image_objects_search(self, query_objects: List[Dict],
+                                       metric: str = 'cosine', 
+                                       top_k: int = 50,
+                                       aggregation: str = 'best_match',
+                                       exclude_image_id: Optional[str] = None) -> Dict[str, float]:
+        """
+        Perform image-based object search and calculate CBIR evaluation metrics.
+        
+        Args:
+            query_objects: List of detected objects in query image
+            metric: Distance metric
+            top_k: Maximum results
+            aggregation: Score aggregation method
+            exclude_image_id: Image to exclude from results
+            
+        Returns:
+            Dict with all evaluation metrics
+        """
+        results = self.search_by_image_objects(
+            query_objects, 
+            top_k=top_k, 
+            metric=metric,
+            aggregation=aggregation,
+            exclude_image_id=exclude_image_id
+        )
+        
+        query_classes = [obj['class_name'] for obj in query_objects]
+        
+        return {
+            'precision_at_10': self.precision_at_k_multi_class(results, query_classes, k=10),
+            'precision_at_5': self.precision_at_k_multi_class(results, query_classes, k=5),
+            'ap_at_50': self.average_precision_at_k_multi_class(results, query_classes, k=50),
+            'ndcg_at_10': self.ndcg_at_k_multi_class(results, query_classes, k=10),
+            'ndcg_at_5': self.ndcg_at_k_multi_class(results, query_classes, k=5),
+            'num_results': len(results),
+            'query_classes': query_classes
+        }
+    
+    def batch_evaluate_objects(self, queries: List[Dict], metric: str = 'cosine',
+                               top_k: int = 50) -> Dict[str, float]:
+        """
+        Evaluate retrieval performance across multiple object queries.
+        
+        Args:
+            queries: List of dicts with 'vector', 'class_name'
+            metric: Distance metric
+            top_k: Maximum results
+            
+        Returns:
+            Aggregated metrics including mAP@50
+        """
+        all_results = []
+        p_at_10_scores = []
+        ndcg_at_10_scores = []
+        
+        for query in queries:
+            query_class = query['class_name']
+            results = self.search_by_object(query['vector'], query_class, 
+                                           top_k=top_k, metric=metric)
+            
+            all_results.append({
+                'results': results,
+                'query_class': query_class
+            })
+            
+            p_at_10_scores.append(self.precision_at_k(results, query_class, k=10))
+            ndcg_at_10_scores.append(self.ndcg_at_k(results, query_class, k=10))
+        
+        return {
+            'mean_precision_at_10': float(np.mean(p_at_10_scores)) if p_at_10_scores else 0.0,
+            'map_at_50': self.mean_average_precision_at_k(all_results, k=50),
+            'mean_ndcg_at_10': float(np.mean(ndcg_at_10_scores)) if ndcg_at_10_scores else 0.0,
+            'num_queries': len(queries)
+        }
+    
+    def batch_evaluate_image_objects(self, image_queries: List[Dict], 
+                                     metric: str = 'cosine',
+                                     top_k: int = 50,
+                                     aggregation: str = 'best_match') -> Dict[str, float]:
+        """
+        Evaluate retrieval performance across multiple image-based object queries.
+        
+        Args:
+            image_queries: List of dicts with 'objects' (list of detected objects)
+                          and optionally 'exclude_image_id'
+            metric: Distance metric
+            top_k: Maximum results
+            aggregation: Score aggregation method
+            
+        Returns:
+            Aggregated metrics including mAP@50
+        """
+        all_results = []
+        p_at_10_scores = []
+        ndcg_at_10_scores = []
+        
+        for query in image_queries:
+            query_objects = query['objects']
+            exclude_id = query.get('exclude_image_id')
+            
+            results = self.search_by_image_objects(
+                query_objects, 
+                top_k=top_k,
+                metric=metric,
+                aggregation=aggregation,
+                exclude_image_id=exclude_id
+            )
+            
+            query_classes = [obj['class_name'] for obj in query_objects]
+            
+            all_results.append({
+                'results': results,
+                'query_classes': query_classes
+            })
+            
+            p_at_10_scores.append(
+                self.precision_at_k_multi_class(results, query_classes, k=10)
+            )
+            ndcg_at_10_scores.append(
+                self.ndcg_at_k_multi_class(results, query_classes, k=10)
+            )
+        
+        return {
+            'mean_precision_at_10': float(np.mean(p_at_10_scores)) if p_at_10_scores else 0.0,
+            'map_at_50': self.mean_average_precision_at_k(all_results, k=50),
+            'mean_ndcg_at_10': float(np.mean(ndcg_at_10_scores)) if ndcg_at_10_scores else 0.0,
+            'num_queries': len(image_queries)
         }
 
 

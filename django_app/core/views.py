@@ -548,6 +548,9 @@ class SearchView(TemplateView):
                     except (Image.DoesNotExist, ValueError):
                         continue
 
+                # Get evaluation metrics from API response
+                evaluation_metrics = result.get('data', {}).get('evaluation_metrics', {})
+
                 # Prepare context
                 context = self.get_context_data()
                 context['form'] = form
@@ -557,6 +560,7 @@ class SearchView(TemplateView):
                 context['query_classes'] = query_classes
                 context['metric'] = metric
                 context['top_k'] = top_k
+                context['evaluation_metrics'] = evaluation_metrics
 
                 # Log search
                 SearchHistory.objects.create(
@@ -650,12 +654,16 @@ class SearchByImageView(View):
                 except (Image.DoesNotExist, ValueError):
                     continue
 
+            # Get evaluation metrics from API response
+            evaluation_metrics = result.get('data', {}).get('evaluation_metrics', {})
+
             return render(request, 'core/object_search_results.html', {
                 'query_image': image,
                 'results': enriched_results,
                 'query_classes': query_classes,
                 'metric': metric,
-                'top_k': top_k
+                'top_k': top_k,
+                'evaluation_metrics': evaluation_metrics
             })
 
         except Exception as e:
@@ -747,13 +755,17 @@ class SearchBySelectedObjectsView(View):
                 except (Image.DoesNotExist, ValueError):
                     continue
             
+            # Get evaluation metrics from API response
+            evaluation_metrics = result.get('data', {}).get('evaluation_metrics', {})
+            
             return render(request, 'core/object_search_results.html', {
                 'query_image': image,
                 'results': enriched_results,
                 'query_classes': query_classes,
                 'selected_objects': list(selected_objects),
                 'metric': metric,
-                'top_k': top_k
+                'top_k': top_k,
+                'evaluation_metrics': evaluation_metrics
             })
         
         except Exception as e:
@@ -813,6 +825,9 @@ class ObjectSearchView(View):
             # Query image URL
             query_image_url = image.file.url if hasattr(image.file, 'url') else ''
 
+            # Get evaluation metrics from API response
+            evaluation_metrics = result.get('data', {}).get('evaluation_metrics', {})
+
             context = {
                 'query_image': image,
                 'query_image_url': query_image_url,
@@ -820,6 +835,7 @@ class ObjectSearchView(View):
                 'query_classes': query_classes,
                 'descriptor_type': 'object',
                 'distance_metric': metric,
+                'evaluation_metrics': evaluation_metrics,
             }
             return render(request, 'core/object_search_results.html', context)
 

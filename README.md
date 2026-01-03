@@ -156,6 +156,52 @@ Key features:
 - Multiple distance metrics: Cosine, Euclidean, Manhattan, Chi-Square, Histogram Intersection
 - Automatic indexing on image upload
 
+### CBIR Evaluation Metrics
+
+The system includes standard Information Retrieval metrics to evaluate search quality:
+
+| Metric | Description | Usage |
+|--------|-------------|-------|
+| **P@K** (Precision@K) | Proportion of relevant items in top-K results | `precision_at_k(results, query_class, k=10)` |
+| **mAP@K** (Mean Average Precision) | Average of AP@K across multiple queries | `mean_average_precision_at_k(query_results_list, k=50)` |
+| **NDCG@K** (Normalized DCG) | Ranking quality with position-based discount | `ndcg_at_k(results, query_class, k=10)` |
+
+**By Image** (`services/similarity.py`):
+```python
+from services.similarity import similarity_service
+
+# Evaluate single search
+metrics = similarity_service.evaluate_search(
+    query_vector=features,
+    query_class='Dog',
+    metric='cosine'
+)
+# Returns: {'precision_at_10': 0.8, 'ap_at_50': 0.75, 'ndcg_at_10': 0.82, ...}
+
+# Batch evaluation
+batch_metrics = similarity_service.batch_evaluate(queries)
+# Returns: {'mean_precision_at_10': 0.78, 'map_at_50': 0.72, 'mean_ndcg_at_10': 0.80}
+```
+
+**By Objects** (`services/similarity_objects.py`):
+```python
+from services.similarity_objects import object_similarity_service
+
+# Evaluate object search
+metrics = object_similarity_service.evaluate_object_search(
+    query_vector=features,
+    query_class='bus',
+    metric='cosine'
+)
+
+# Evaluate multi-object image search
+metrics = object_similarity_service.evaluate_image_objects_search(
+    query_objects=[{'class_name': 'bus', 'feature_vector': [...]}],
+    metric='cosine'
+)
+# Returns: {'precision_at_10': 0.7, 'ap_at_50': 0.68, 'ndcg_at_10': 0.75, ...}
+```
+
 ### Image Transformations
 
 - Crop - Extract regions of interest
