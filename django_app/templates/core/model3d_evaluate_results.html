@@ -1,0 +1,234 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Résultats de l'Évaluation - CBIR System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .metric-card {
+        text-align: center;
+        padding: 1.5rem;
+    }
+    .metric-value {
+        font-size: 2.5rem;
+        font-weight: bold;
+    }
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+    }
+    .progress-metric {
+        height: 15px;
+        border-radius: 8px;
+    }
+    .table-metrics td {
+        vertical-align: middle;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_gallery' %}">Galerie 3D</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_evaluate' %}">Évaluation</a></li>
+            <li class="breadcrumb-item active">Résultats</li>
+        </ol>
+    </nav>
+    
+    <h1><i class="bi bi-graph-up"></i> Résultats de l'Évaluation</h1>
+    <p class="text-muted">Performance du système de recherche 3D</p>
+    
+    <!-- Summary Cards -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card metric-card bg-primary text-white">
+                <div class="metric-value">{{ results.mAP|floatformat:3 }}</div>
+                <div class="metric-label">mAP (Mean Average Precision)</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card bg-success text-white">
+                <div class="metric-value">{{ results.num_queries }}</div>
+                <div class="metric-label">Requêtes Évaluées</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card bg-info text-white">
+                <div class="metric-value">{{ results.num_categories }}</div>
+                <div class="metric-label">Catégories</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card metric-card bg-secondary text-white">
+                <div class="metric-value">{{ metric|title }}</div>
+                <div class="metric-label">Métrique Utilisée</div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Detailed Metrics -->
+    <div class="row">
+        <!-- Precision at K -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bullseye"></i> Precision @ K</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-metrics">
+                        <thead>
+                            <tr>
+                                <th>K</th>
+                                <th>Precision</th>
+                                <th>Visualisation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for k, value in results.precision_at_k.items %}
+                            <tr>
+                                <td><strong>{{ k }}</strong></td>
+                                <td>{{ value|floatformat:4 }}</td>
+                                <td style="width: 50%;">
+                                    <div class="progress progress-metric">
+                                        {% widthratio value 1 100 as percent %}
+                                        <div class="progress-bar 
+                                            {% if value >= 0.7 %}bg-success{% elif value >= 0.5 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" style="width: {{ percent }}%">
+                                            {{ percent }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        
+        <!-- NDCG at K -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-bar-chart-line"></i> NDCG @ K</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-metrics">
+                        <thead>
+                            <tr>
+                                <th>K</th>
+                                <th>NDCG</th>
+                                <th>Visualisation</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for k, value in results.ndcg_at_k.items %}
+                            <tr>
+                                <td><strong>{{ k }}</strong></td>
+                                <td>{{ value|floatformat:4 }}</td>
+                                <td style="width: 50%;">
+                                    <div class="progress progress-metric">
+                                        {% widthratio value 1 100 as percent %}
+                                        <div class="progress-bar 
+                                            {% if value >= 0.7 %}bg-success{% elif value >= 0.5 %}bg-warning{% else %}bg-danger{% endif %}" 
+                                             role="progressbar" style="width: {{ percent }}%">
+                                            {{ percent }}%
+                                        </div>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Per-Category Performance -->
+    {% if results.per_category %}
+    <div class="card mb-4">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-collection"></i> Performance par Catégorie</h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Catégorie</th>
+                            <th>Nb Modèles</th>
+                            <th>P@5</th>
+                            <th>P@10</th>
+                            <th>AP</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for cat, data in results.per_category.items %}
+                        <tr>
+                            <td><span class="badge bg-secondary">{{ cat }}</span></td>
+                            <td>{{ data.count }}</td>
+                            <td>{{ data.p_at_5|floatformat:3 }}</td>
+                            <td>{{ data.p_at_10|floatformat:3 }}</td>
+                            <td>{{ data.ap|floatformat:3 }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Interpretation -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Interprétation des Résultats</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6>mAP: {{ results.mAP|floatformat:3 }}</h6>
+                    {% if results.mAP >= 0.5 %}
+                    <p class="text-success">
+                        <i class="bi bi-check-circle"></i> 
+                        Excellentes performances! Le système trouve efficacement les modèles similaires.
+                    </p>
+                    {% elif results.mAP >= 0.3 %}
+                    <p class="text-warning">
+                        <i class="bi bi-exclamation-circle"></i> 
+                        Performances correctes. Considérez d'optimiser les descripteurs ou la métrique.
+                    </p>
+                    {% else %}
+                    <p class="text-danger">
+                        <i class="bi bi-x-circle"></i> 
+                        Performances limitées. Essayez une autre métrique de distance ou affinez les descripteurs.
+                    </p>
+                    {% endif %}
+                </div>
+                <div class="col-md-6">
+                    <h6>Recommandations</h6>
+                    <ul class="small">
+                        <li>Testez différentes métriques (cosinus, euclidienne)</li>
+                        <li>Augmentez le nombre d'échantillons par modèle</li>
+                        <li>Essayez de pondérer les descripteurs différemment</li>
+                        <li>Vérifiez la qualité des modèles 3D sources</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="text-center mt-4">
+        <a href="{% url 'core:model3d_evaluate' %}" class="btn btn-primary">
+            <i class="bi bi-arrow-repeat"></i> Nouvelle Évaluation
+        </a>
+        <a href="{% url 'core:model3d_search' %}" class="btn btn-outline-success">
+            <i class="bi bi-search"></i> Tester la Recherche
+        </a>
+    </div>
+</div>
+{% endblock %}

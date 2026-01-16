@@ -1,0 +1,266 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Descripteurs 3D - {{ model_id }} - CBIR System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .descriptor-section {
+        margin-bottom: 2rem;
+    }
+    .descriptor-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 0.75rem 1rem;
+        background: #f8f9fa;
+        border-radius: 0.375rem;
+        margin-bottom: 1rem;
+    }
+    .vector-display {
+        background: #2d2d2d;
+        color: #00ff00;
+        padding: 1rem;
+        border-radius: 0.375rem;
+        font-family: 'Courier New', monospace;
+        font-size: 0.75rem;
+        max-height: 200px;
+        overflow-y: auto;
+        word-break: break-all;
+    }
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+        gap: 0.5rem;
+    }
+    .stat-item {
+        text-align: center;
+        padding: 0.5rem;
+        background: #e9ecef;
+        border-radius: 0.25rem;
+    }
+    .stat-value {
+        font-size: 1.1rem;
+        font-weight: bold;
+    }
+    .stat-label {
+        font-size: 0.7rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_gallery' %}">Galerie 3D</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_detail' model_id=model_id %}">{{ model_id|truncatechars:20 }}</a></li>
+            <li class="breadcrumb-item active">Descripteurs</li>
+        </ol>
+    </nav>
+    
+    <h1><i class="bi bi-braces"></i> Descripteurs 3D</h1>
+    <p class="text-muted">Vecteurs de caractéristiques extraits du modèle <code>{{ model_id }}</code></p>
+    
+    {% if error %}
+    <div class="alert alert-danger">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+    </div>
+    {% else %}
+    
+    <!-- Combined Descriptor -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="bi bi-layers"></i> Descripteur Combiné</h5>
+        </div>
+        <div class="card-body">
+            <p class="text-muted mb-3">
+                Vecteur concaténé de tous les descripteurs locaux, utilisé pour la recherche par similarité.
+            </p>
+            
+            <div class="stats-grid mb-3">
+                <div class="stat-item">
+                    <div class="stat-value">{{ descriptors.combined|length }}</div>
+                    <div class="stat-label">Dimensions</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ descriptors.combined_stats.min|floatformat:4 }}</div>
+                    <div class="stat-label">Min</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ descriptors.combined_stats.max|floatformat:4 }}</div>
+                    <div class="stat-label">Max</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ descriptors.combined_stats.mean|floatformat:4 }}</div>
+                    <div class="stat-label">Moyenne</div>
+                </div>
+                <div class="stat-item">
+                    <div class="stat-value">{{ descriptors.combined_stats.std|floatformat:4 }}</div>
+                    <div class="stat-label">Écart-type</div>
+                </div>
+            </div>
+            
+            <details>
+                <summary class="btn btn-sm btn-outline-secondary">Voir le vecteur complet</summary>
+                <div class="vector-display mt-2">
+                    [{% for val in descriptors.combined %}{{ val|floatformat:6 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                </div>
+            </details>
+        </div>
+    </div>
+    
+    <!-- Individual Descriptors -->
+    <div class="row">
+        <!-- Spin Image -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-disc"></i> Spin Image</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Histogramme 2D encodant la distribution des points dans un système de coordonnées cylindriques.
+                    </p>
+                    <div class="mb-2">
+                        <span class="badge bg-info">{{ descriptors.spin_image|length }} dimensions</span>
+                    </div>
+                    <details>
+                        <summary class="small text-primary">Voir les valeurs</summary>
+                        <div class="vector-display mt-2" style="max-height: 100px;">
+                            [{% for val in descriptors.spin_image %}{{ val|floatformat:4 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shape Context 3D -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-globe"></i> Shape Context 3D</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Histogramme sphérique capturant la distribution spatiale des points autour d'un point de référence.
+                    </p>
+                    <div class="mb-2">
+                        <span class="badge bg-info">{{ descriptors.shape_context|length }} dimensions</span>
+                    </div>
+                    <details>
+                        <summary class="small text-primary">Voir les valeurs</summary>
+                        <div class="vector-display mt-2" style="max-height: 100px;">
+                            [{% for val in descriptors.shape_context %}{{ val|floatformat:4 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Shape Index -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-bezier"></i> Shape Index Histogram</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Histogramme des indices de forme basé sur les courbures principales de la surface.
+                    </p>
+                    <div class="mb-2">
+                        <span class="badge bg-info">{{ descriptors.shape_index|length }} dimensions</span>
+                    </div>
+                    <details>
+                        <summary class="small text-primary">Voir les valeurs</summary>
+                        <div class="vector-display mt-2" style="max-height: 100px;">
+                            [{% for val in descriptors.shape_index %}{{ val|floatformat:4 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Point Feature Histogram -->
+        <div class="col-lg-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header">
+                    <h6 class="mb-0"><i class="bi bi-bar-chart"></i> Point Feature Histogram</h6>
+                </div>
+                <div class="card-body">
+                    <p class="small text-muted">
+                        Histogramme des relations angulaires entre les normales de points voisins.
+                    </p>
+                    <div class="mb-2">
+                        <span class="badge bg-info">{{ descriptors.pfh|length }} dimensions</span>
+                    </div>
+                    <details>
+                        <summary class="small text-primary">Voir les valeurs</summary>
+                        <div class="vector-display mt-2" style="max-height: 100px;">
+                            [{% for val in descriptors.pfh %}{{ val|floatformat:4 }}{% if not forloop.last %}, {% endif %}{% endfor %}]
+                        </div>
+                    </details>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Descriptor Information -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0"><i class="bi bi-info-circle"></i> À Propos des Descripteurs Locaux</h5>
+        </div>
+        <div class="card-body">
+            <table class="table table-sm">
+                <thead>
+                    <tr>
+                        <th>Descripteur</th>
+                        <th>Type</th>
+                        <th>Dimensions</th>
+                        <th>Caractéristiques</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>Spin Image</strong></td>
+                        <td>Histogramme 2D</td>
+                        <td>256 (16×16)</td>
+                        <td>Invariant rotation partielle, robuste au bruit</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Shape Context 3D</strong></td>
+                        <td>Histogramme sphérique</td>
+                        <td>360 (5×6×12)</td>
+                        <td>Capture la structure globale locale</td>
+                    </tr>
+                    <tr>
+                        <td><strong>Shape Index</strong></td>
+                        <td>Histogramme courbure</td>
+                        <td>64</td>
+                        <td>Décrit la géométrie locale (convexe/concave)</td>
+                    </tr>
+                    <tr>
+                        <td><strong>PFH</strong></td>
+                        <td>Histogramme angulaire</td>
+                        <td>33 (3×11)</td>
+                        <td>Relations entre normales, très discriminant</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    {% endif %}
+    
+    <!-- Navigation -->
+    <div class="text-center mt-4">
+        <a href="{% url 'core:model3d_detail' model_id=model_id %}" class="btn btn-primary">
+            <i class="bi bi-arrow-left"></i> Retour au Modèle
+        </a>
+        <a href="{% url 'core:model3d_search_by_id' model_id=model_id %}" class="btn btn-success">
+            <i class="bi bi-search"></i> Rechercher Similaires
+        </a>
+    </div>
+</div>
+{% endblock %}

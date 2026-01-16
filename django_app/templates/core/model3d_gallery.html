@@ -1,0 +1,136 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - CBIR System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .model-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .model-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+    }
+    .category-badge {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+    }
+    .stats-card {
+        border-left: 4px solid #0d6efd;
+    }
+    .model-3d-icon {
+        font-size: 4rem;
+        color: #6c757d;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1><i class="bi bi-box"></i> {{ title }}</h1>
+        <div>
+            <a href="{% url 'core:model3d_upload' %}" class="btn btn-primary">
+                <i class="bi bi-cloud-upload"></i> Upload
+            </a>
+            <a href="{% url 'core:model3d_index_build' %}" class="btn btn-outline-secondary">
+                <i class="bi bi-database-add"></i> Construire Index
+            </a>
+        </div>
+    </div>
+    
+    <!-- Statistics -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card stats-card">
+                <div class="card-body">
+                    <h5 class="card-title">Total Modèles</h5>
+                    <h2 class="text-primary">{{ stats.total_models|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Catégories</h5>
+                    {% if stats.categories %}
+                    <div class="d-flex flex-wrap gap-2">
+                        {% for category, count in stats.categories.items %}
+                        <span class="badge bg-secondary">{{ category }}: {{ count }}</span>
+                        {% endfor %}
+                    </div>
+                    {% else %}
+                    <p class="text-muted mb-0">Aucune catégorie indexée</p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Actions -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <h5 class="card-title"><i class="bi bi-gear"></i> Actions</h5>
+            <div class="btn-group">
+                <a href="{% url 'core:model3d_search' %}" class="btn btn-success">
+                    <i class="bi bi-search"></i> Rechercher des Modèles Similaires
+                </a>
+                <form method="post" action="{% url 'core:model3d_index_clear' %}" class="d-inline" 
+                      onsubmit="return confirm('Êtes-vous sûr de vouloir vider l\'index 3D?')">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-outline-danger">
+                        <i class="bi bi-trash"></i> Vider l'Index
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Quick Start Guide -->
+    {% if stats.total_models == 0 %}
+    <div class="card border-info">
+        <div class="card-header bg-info text-white">
+            <i class="bi bi-info-circle"></i> Guide de Démarrage
+        </div>
+        <div class="card-body">
+            <h5>Comment utiliser le système de recherche 3D ?</h5>
+            <ol>
+                <li><strong>Télécharger la base de données</strong>: Récupérez le dataset 3D Pottery depuis 
+                    <a href="http://www.ipet.gr/~akoutsou/benchmark/" target="_blank">http://www.ipet.gr/~akoutsou/benchmark/</a>
+                </li>
+                <li><strong>Construire l'index</strong>: Utilisez la fonction "Construire Index" pour indexer tous les modèles OBJ</li>
+                <li><strong>Rechercher</strong>: Uploadez un modèle requête pour trouver des modèles similaires</li>
+            </ol>
+            
+            <h6>Descripteurs utilisés (Local Features):</h6>
+            <ul>
+                <li><strong>Spin Images</strong>: Histogrammes 2D de la géométrie locale</li>
+                <li><strong>3D Shape Contexts</strong>: Distribution spatiale des points de surface</li>
+                <li><strong>Shape Index</strong>: Histogramme des courbures locales</li>
+                <li><strong>Point Feature Histograms</strong>: Relations angulaires entre paires de points</li>
+            </ul>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Category Gallery (if models exist) -->
+    {% if stats.categories %}
+    <h3 class="mt-4 mb-3">Parcourir par Catégorie</h3>
+    <div class="row">
+        {% for category, count in stats.categories.items %}
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card model-card h-100">
+                <div class="card-body text-center">
+                    <i class="bi bi-box model-3d-icon"></i>
+                    <h5 class="card-title mt-2">{{ category }}</h5>
+                    <p class="card-text text-muted">{{ count }} modèle{% if count > 1 %}s{% endif %}</p>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

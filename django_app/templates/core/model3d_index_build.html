@@ -1,0 +1,155 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Construire l'Index 3D - CBIR System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_gallery' %}">Galerie 3D</a></li>
+            <li class="breadcrumb-item active">Construire l'Index</li>
+        </ol>
+    </nav>
+    
+    <h1><i class="bi bi-database-add"></i> Construire l'Index 3D</h1>
+    <p class="text-muted">Indexez automatiquement tous les modèles 3D d'un répertoire</p>
+    
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    {% if success %}
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="bi bi-check-circle"></i> {{ success }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-folder"></i> Configuration de l'Indexation</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="directory" class="form-label">
+                                <i class="bi bi-folder-fill text-warning"></i> Chemin du Répertoire
+                            </label>
+                            <input type="text" class="form-control form-control-lg" id="directory" name="directory" 
+                                   placeholder="/chemin/vers/modeles3d" required>
+                            <div class="form-text">
+                                Chemin absolu vers le dossier contenant les fichiers .obj. 
+                                Les sous-dossiers seront parcourus récursivement.
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> Informations</h6>
+                            <ul class="mb-0">
+                                <li>Formats supportés: <strong>.obj</strong> (Wavefront OBJ)</li>
+                                <li>Les noms des sous-dossiers servent de catégories</li>
+                                <li>L'indexation peut prendre plusieurs minutes selon le nombre de modèles</li>
+                                <li>Descripteurs extraits: Spin Images, Shape Context 3D, Shape Index, PFH</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-play-fill"></i> Lancer l'Indexation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Build Results -->
+            {% if build_result %}
+            <div class="card mt-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="bi bi-check-circle"></i> Résultat de l'Indexation</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row text-center">
+                        <div class="col-4">
+                            <div class="display-6 text-success">{{ build_result.indexed }}</div>
+                            <div class="text-muted">Modèles Indexés</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6 text-danger">{{ build_result.errors|length }}</div>
+                            <div class="text-muted">Erreurs</div>
+                        </div>
+                        <div class="col-4">
+                            <div class="display-6 text-primary">{{ build_result.total }}</div>
+                            <div class="text-muted">Total dans l'Index</div>
+                        </div>
+                    </div>
+                    
+                    {% if build_result.errors %}
+                    <div class="mt-4">
+                        <h6 class="text-danger">Fichiers avec erreurs:</h6>
+                        <ul class="list-group list-group-flush" style="max-height: 200px; overflow-y: auto;">
+                            {% for err in build_result.errors %}
+                            <li class="list-group-item list-group-item-danger small">{{ err }}</li>
+                            {% endfor %}
+                        </ul>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Quick Actions -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightning"></i> Actions Rapides</h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:model3d_gallery' %}" class="btn btn-outline-primary">
+                            <i class="bi bi-grid"></i> Voir la Galerie
+                        </a>
+                        <a href="{% url 'core:model3d_upload' %}" class="btn btn-outline-success">
+                            <i class="bi bi-cloud-upload"></i> Upload Manuel
+                        </a>
+                        <a href="{% url 'core:model3d_index_clear' %}" class="btn btn-outline-danger"
+                           onclick="return confirm('Êtes-vous sûr de vouloir vider l\'index ?');">
+                            <i class="bi bi-trash"></i> Vider l'Index
+                        </a>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Benchmark Info -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-database"></i> Base de Test Recommandée</h5>
+                </div>
+                <div class="card-body">
+                    <h6>3D Pottery Database</h6>
+                    <p class="small text-muted">
+                        Base de benchmark contenant 1012 modèles 3D de poteries grecques classifiées en catégories.
+                    </p>
+                    <ul class="small">
+                        <li>1012 modèles OBJ</li>
+                        <li>Catégories: Amphora, Hydria, Krater, etc.</li>
+                        <li>Vérité terrain incluse</li>
+                    </ul>
+                    <a href="http://www.ipet.gr/~akoutsou/benchmark/" target="_blank" class="btn btn-sm btn-outline-info">
+                        <i class="bi bi-box-arrow-up-right"></i> Télécharger
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

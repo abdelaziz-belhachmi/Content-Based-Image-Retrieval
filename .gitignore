@@ -1,5 +1,6 @@
 /Data - zip
 /Data
+/Data_3D
 /django_app/core/__pycache__
 /django_app/core/migrations/__pycache__
 /flask_api/__pycache__
@@ -10,3 +11,10 @@
 /django_app/config/__pycache__
 /flask_api/services/__pycache__
 rapport .pdf
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+/rapport_latex
+A survey of content based 3D shape retrieval methods.md

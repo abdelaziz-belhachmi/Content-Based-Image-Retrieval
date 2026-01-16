@@ -1,0 +1,148 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - CBIR System{% endblock %}
+
+{% block extra_css %}
+<style>
+    .result-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .result-card:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+    }
+    .similarity-bar {
+        height: 8px;
+        border-radius: 4px;
+        background: linear-gradient(90deg, #28a745, #ffc107, #dc3545);
+    }
+    .similarity-indicator {
+        height: 8px;
+        border-radius: 4px;
+        background: #28a745;
+    }
+    .rank-badge {
+        position: absolute;
+        top: -10px;
+        left: -10px;
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        background: #0d6efd;
+        color: white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: bold;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_gallery' %}">Galerie 3D</a></li>
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_search' %}">Recherche</a></li>
+            <li class="breadcrumb-item active">Résultats</li>
+        </ol>
+    </nav>
+    
+    <h1><i class="bi bi-search"></i> {{ title }}</h1>
+    
+    <!-- Query Info -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row align-items-center">
+                <div class="col-md-2 text-center">
+                    <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                </div>
+                <div class="col-md-6">
+                    <h5>Requête</h5>
+                    {% if query_filename %}
+                    <p class="mb-0"><strong>Fichier:</strong> {{ query_filename }}</p>
+                    {% elif query_model_id %}
+                    <p class="mb-0"><strong>Modèle:</strong> <code>{{ query_model_id }}</code></p>
+                    {% endif %}
+                </div>
+                <div class="col-md-4">
+                    <div class="row text-center">
+                        <div class="col-6">
+                            <small class="text-muted">Métrique</small>
+                            <div class="fw-bold">{{ metric|title }}</div>
+                        </div>
+                        <div class="col-6">
+                            <small class="text-muted">Résultats</small>
+                            <div class="fw-bold">{{ count }}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Results -->
+    {% if results %}
+    <div class="row">
+        {% for result in results %}
+        <div class="col-md-6 col-lg-4 mb-4">
+            <div class="card result-card h-100 position-relative">
+                <span class="rank-badge">{{ forloop.counter }}</span>
+                <div class="card-body">
+                    <div class="text-center mb-3">
+                        <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                    </div>
+                    
+                    <h6 class="card-title text-truncate" title="{{ result.model_id }}">
+                        {{ result.model_id|truncatechars:25 }}
+                    </h6>
+                    
+                    {% if result.category %}
+                    <span class="badge bg-secondary mb-2">{{ result.category }}</span>
+                    {% endif %}
+                    
+                    <!-- Similarity Score -->
+                    <div class="mb-3">
+                        <div class="d-flex justify-content-between mb-1">
+                            <small class="text-muted">Similarité</small>
+                            <small class="fw-bold">{{ result.similarity|floatformat:2 }}%</small>
+                        </div>
+                        <div class="progress" style="height: 8px;">
+                            <div class="progress-bar bg-success" role="progressbar" 
+                                 style="width: {{ result.similarity|floatformat:0 }}%">
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="small text-muted mb-2">
+                        Distance: {{ result.distance|floatformat:4 }}
+                    </div>
+                    
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:model3d_detail' model_id=result.model_id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> Voir le Modèle
+                        </a>
+                        <a href="{% url 'core:model3d_search_by_id' model_id=result.model_id %}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-search"></i> Rechercher Similaires
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Aucun modèle similaire trouvé.
+    </div>
+    {% endif %}
+    
+    <!-- New Search -->
+    <div class="text-center mt-4">
+        <a href="{% url 'core:model3d_search' %}" class="btn btn-primary">
+            <i class="bi bi-arrow-left"></i> Nouvelle Recherche
+        </a>
+    </div>
+</div>
+{% endblock %}

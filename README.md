@@ -1,6 +1,8 @@
-# CBIR System - Content-Based Image Retrieval with Object Detection
+# CBIR System - Content-Based Image & 3D Model Retrieval
 
-A Content-Based Image Retrieval (CBIR) system that combines YOLOv8 object detection with advanced visual feature descriptors for intelligent image search.
+A comprehensive Content-Based Information Retrieval (CBIR) system that combines:
+- **2D Images**: YOLOv8 object detection with visual feature descriptors
+- **3D Models**: Local feature-based retrieval using Spin Images, Shape Contexts, and PFH
 
 ## Overview
 
@@ -10,6 +12,10 @@ This system allows users to:
 - Extract visual descriptors (color, texture, shape) from detected objects
 - Search for similar images based on visual content
 - Apply image transformations
+- **Upload and index 3D models (OBJ format)**
+- **Extract 3D local feature descriptors**
+- **Search for similar 3D models by content**
+- **Evaluate 3D retrieval performance**
 
 ## Project Structure
 
@@ -35,24 +41,42 @@ Content-Based-Image-Retrieval/
 |   |   |-- descriptors.py     # Feature extraction
 |   |   |-- similarity.py      # Legacy similarity search
 |   |   |-- similarity_objects.py  # Object-based search
-|   |   +-- object_index_persistence.py  # Index persistence
+|   |   |-- object_index_persistence.py  # Index persistence
+|   |   |-- mesh_loader.py     # 3D OBJ file loader
+|   |   |-- descriptors_3d.py  # 3D local feature extraction
+|   |   +-- similarity_3d.py   # 3D model similarity search
 |   +-- resources/             # API endpoints
 |       |-- detection.py
 |       |-- descriptors.py
 |       |-- images.py
 |       |-- search.py
-|       +-- search_objects.py
+|       |-- search_objects.py
+|       +-- models_3d.py       # 3D model endpoints
 |-- django_app/                # Django web application
 |   |-- config/                # Django settings
 |   |-- core/                  # Main app
 |   |   |-- models.py          # Database models
-|   |   |-- views.py           # View handlers
+|   |   |-- views.py           # View handlers (2D)
+|   |   |-- views_3d.py        # View handlers (3D)
 |   |   |-- api_client.py      # Flask API client
 |   |   +-- forms.py           # Form definitions
 |   |-- templates/             # HTML templates
+|   |   |-- core/
+|   |       |-- base.html, home.html, gallery.html, ...
+|   |       |-- model3d_gallery.html    # 3D gallery
+|   |       |-- model3d_upload.html     # 3D upload
+|   |       |-- model3d_detail.html     # 3D model detail
+|   |       |-- model3d_search.html     # 3D search form
+|   |       +-- model3d_*.html          # Other 3D templates
 |   |-- static/                # CSS, JS files
 |   +-- media/                 # Uploaded images
+|-- rapport_latex/             # LaTeX report
+|   +-- rapport_3d_retrieval.tex
+|-- Data_3D/                   # 3D benchmark data (after download)
+|   |-- models/                # OBJ files
+|   +-- thumbnails/            # Preview images
 |-- filter_data.py             # Dataset filtering script
+|-- download_3d_benchmark.py   # 3D dataset downloader
 |-- requirements.txt           # Python dependencies
 |-- cahier_de_charge.md        # Project specifications (French)
 +-- README.md                  # This file
@@ -96,7 +120,43 @@ cd yolo_training
 python train.py
 ```
 
-### 5. Start Flask API
+### 5. Download 3D Benchmark Dataset (For 3D Retrieval)
+
+Download the 3D Pottery Benchmark Dataset:
+
+```bash
+python download_3d_benchmark.py
+```
+
+This script will:
+- Download the 3D Pottery Dataset (1012 OBJ models)
+- Extract and organize files into `Data_3D/models/`
+- Prepare thumbnails in `Data_3D/thumbnails/`
+
+### 5b. Index 3D Models (Optional - Command Line)
+
+You can pre-index 3D models from the command line:
+
+```bash
+# Index all models
+python index_3d_models.py
+
+# Index with a limit (for testing)
+python index_3d_models.py --limit 100
+
+# Index and evaluate
+python index_3d_models.py --evaluate --metric cosine
+
+# Show index statistics
+python index_3d_models.py --stats
+
+# Clear the index
+python index_3d_models.py --clear
+```
+
+Alternatively, use the web interface: **Recherche 3D > Construire Index**
+
+### 6. Start Flask API
 
 ```bash
 cd flask_api
@@ -105,7 +165,7 @@ python app.py
 
 The API runs at: http://localhost:5000
 
-### 6. Setup Django Application
+### 7. Setup Django Application
 
 ```bash
 cd django_app
@@ -209,6 +269,76 @@ metrics = object_similarity_service.evaluate_image_objects_search(
 - Rotate - Rotate by any angle
 - Flip - Horizontal/vertical flip
 
+## 3D Model Retrieval
+
+### Overview
+
+The 3D retrieval module implements content-based search for 3D models using **local feature descriptors**. Based on the research survey "A survey of content based 3D shape retrieval methods", this system focuses on local features for their robustness to partial matching and occlusion.
+
+### Supported File Format
+
+- **Wavefront OBJ (.obj)** - Standard 3D mesh format with vertices and faces
+
+### 3D Feature Descriptors
+
+| Descriptor | Type | Dimensions | Description |
+|------------|------|------------|-------------|
+| **Spin Images** | 2D Histogram | 256 (16×16) | Distribution of points in cylindrical coordinates around surface normals |
+| **Shape Context 3D** | Spherical Histogram | 360 (5×6×12) | Spatial distribution in spherical bins (radial × azimuthal × elevation) |
+| **Shape Index** | Curvature Histogram | 64 | Distribution of surface curvature types (convex, concave, saddle) |
+| **PFH** | Angular Histogram | 33 (3×11) | Point Feature Histogram encoding angular relations between normals |
+
+### Combined Descriptor
+
+All local descriptors are concatenated and L2-normalized to create a unified feature vector of **713 dimensions**:
+- Captures both geometric (PFH, Shape Index) and structural (Spin Image, Shape Context) information
+- Enables single-vector similarity comparison
+
+### Distance Metrics
+
+- **Cosine** (recommended) - Angle between vectors, robust to magnitude
+- **Euclidean** - L2 distance
+- **Manhattan** - L1 distance
+- **Correlation** - Pearson correlation coefficient
+
+### 3D Benchmark Database
+
+**3D Pottery Database** (http://www.ipet.gr/~akoutsou/benchmark/)
+- 1012 pottery models in OBJ format
+- Categories: Amphora, Alabastron, Hydria, Krater, Kylix, Lekythos, Oinochoe, Pyxis, Skyphos
+- Ground truth classification for evaluation
+
+### 3D API Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | /models3d/upload | Upload a 3D model |
+| POST | /models3d/descriptors | Extract descriptors from OBJ |
+| GET | /models3d/index | Get index statistics |
+| POST | /models3d/index/build | Build index from directory |
+| DELETE | /models3d/index | Clear the 3D index |
+| POST | /models3d/search | Search similar models |
+| POST | /models3d/evaluate | Evaluate system performance |
+| GET | /models3d/{id} | Get model information |
+| GET | /models3d/{id}/file | Download OBJ file |
+
+### 3D Evaluation Metrics
+
+| Metric | Formula | Interpretation |
+|--------|---------|----------------|
+| **P@K** | Relevant in top-K / K | Precision of top results |
+| **NDCG@K** | DCG@K / IDCG@K | Ranking quality |
+| **mAP** | Mean of AP across queries | Overall retrieval performance |
+
+### Usage (3D Module)
+
+1. Navigate to the **Recherche 3D** menu in the web interface
+2. **Galerie**: View all indexed 3D models
+3. **Upload**: Add new OBJ models to the system
+4. **Construire Index**: Batch index models from a directory
+5. **Rechercher**: Search for similar models by uploading a query
+6. **Évaluer**: Run evaluation on the indexed collection
+
 ## API Endpoints
 
 ### Detection
@@ -275,6 +405,8 @@ metrics = object_similarity_service.evaluate_image_objects_search(
 | Database | SQLite (development) |
 | Image Processing | OpenCV, Pillow, scikit-image |
 | Feature Extraction | NumPy, SciPy, scikit-learn |
+| 3D Processing | NumPy, SciPy (mesh operations) |
+| 3D Descriptors | Custom implementation (Spin Image, PFH, etc.) |
 
 ## Dataset
 

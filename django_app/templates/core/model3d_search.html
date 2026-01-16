@@ -1,0 +1,124 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - CBIR System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0"><i class="bi bi-search"></i> {{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Uploadez un modèle 3D (format OBJ) pour trouver des modèles similaires dans la base de données.
+                    </p>
+                    
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="file" class="form-label">Modèle 3D Requête</label>
+                            <input type="file" class="form-control form-control-lg" id="file" name="file" 
+                                   accept=".obj" required>
+                            <div class="form-text">
+                                Fichier Wavefront OBJ
+                            </div>
+                        </div>
+                        
+                        <div class="row mb-4">
+                            <div class="col-md-6">
+                                <label for="metric" class="form-label">Métrique de Distance</label>
+                                <select class="form-select" id="metric" name="metric">
+                                    {% for m in metrics %}
+                                    <option value="{{ m }}" {% if m == 'cosine' %}selected{% endif %}>
+                                        {{ m|title }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-6">
+                                <label for="k" class="form-label">Nombre de Résultats</label>
+                                <input type="number" class="form-control" id="k" name="k" 
+                                       value="10" min="1" max="100">
+                            </div>
+                        </div>
+                        
+                        {% if categories %}
+                        <div class="mb-4">
+                            <label for="category_filter" class="form-label">Filtrer par Catégorie (optionnel)</label>
+                            <select class="form-select" id="category_filter" name="category_filter">
+                                <option value="">Toutes les catégories</option>
+                                {% for cat in categories %}
+                                <option value="{{ cat }}">{{ cat }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        {% endif %}
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="bi bi-search"></i> Rechercher des Modèles Similaires
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Info about descriptors -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> Descripteurs Utilisés
+                </div>
+                <div class="card-body">
+                    <h6>Local Features Based Similarity</h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-2">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title"><i class="bi bi-disc"></i> Spin Images</h6>
+                                    <small class="text-muted">
+                                        Histogrammes 2D encodant la géométrie locale autour de chaque point.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-2">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title"><i class="bi bi-diagram-3"></i> Shape Contexts 3D</h6>
+                                    <small class="text-muted">
+                                        Distribution spatiale des points dans un repère sphérique local.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-2">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title"><i class="bi bi-graph-up"></i> Shape Index</h6>
+                                    <small class="text-muted">
+                                        Histogramme des indices de forme basés sur les courbures principales.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="card bg-light mb-2">
+                                <div class="card-body p-3">
+                                    <h6 class="card-title"><i class="bi bi-bar-chart"></i> Point Feature Histograms</h6>
+                                    <small class="text-muted">
+                                        Relations angulaires entre paires de points orientés.
+                                    </small>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

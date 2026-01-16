@@ -341,6 +341,39 @@ class FlaskAPIClient:
             return response.json()
         except:
             return {'status': 'unhealthy', 'message': 'Could not connect to Flask API'}
+    
+    # Generic HTTP methods for 3D endpoints
+    
+    def get(self, endpoint):
+        """Generic GET request"""
+        return self._make_request('GET', endpoint)
+    
+    def post(self, endpoint, data=None, json_data=None):
+        """Generic POST request with JSON data"""
+        if data is not None:
+            return self._make_request('POST', endpoint, json=data)
+        elif json_data is not None:
+            return self._make_request('POST', endpoint, json=json_data)
+        else:
+            return self._make_request('POST', endpoint)
+    
+    def delete(self, endpoint):
+        """Generic DELETE request"""
+        return self._make_request('DELETE', endpoint)
+    
+    def upload_file(self, endpoint, files, data=None):
+        """
+        Upload file(s) to endpoint.
+        
+        Args:
+            endpoint: API endpoint
+            files: Dict of {field_name: (filename, file_content)}
+            data: Optional form data
+            
+        Returns:
+            API response
+        """
+        return self._make_request('POST', endpoint, files=files, data=data)
 
 
 # Singleton instance

@@ -1,0 +1,145 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}Évaluation du Système 3D - CBIR System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <nav aria-label="breadcrumb">
+        <ol class="breadcrumb">
+            <li class="breadcrumb-item"><a href="{% url 'core:model3d_gallery' %}">Galerie 3D</a></li>
+            <li class="breadcrumb-item active">Évaluation</li>
+        </ol>
+    </nav>
+    
+    <h1><i class="bi bi-graph-up"></i> Évaluation du Système</h1>
+    <p class="text-muted">Mesurez les performances de recherche avec des métriques standard</p>
+    
+    {% if error %}
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i> {{ error }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    
+    <div class="row">
+        <div class="col-lg-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-sliders"></i> Paramètres d'Évaluation</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="metric" class="form-label">
+                                <i class="bi bi-rulers"></i> Métrique de Distance
+                            </label>
+                            <select class="form-select" id="metric" name="metric">
+                                <option value="cosine" selected>Cosinus (recommandé)</option>
+                                <option value="euclidean">Euclidienne</option>
+                                <option value="manhattan">Manhattan</option>
+                                <option value="correlation">Corrélation</option>
+                            </select>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="k_values" class="form-label">
+                                <i class="bi bi-list-ol"></i> Valeurs de K
+                            </label>
+                            <input type="text" class="form-control" id="k_values" name="k_values" 
+                                   value="5,10,20" placeholder="5,10,20">
+                            <div class="form-text">
+                                Liste de valeurs K pour calculer P@K et NDCG@K, séparées par des virgules.
+                            </div>
+                        </div>
+                        
+                        <div class="alert alert-info">
+                            <h6><i class="bi bi-info-circle"></i> Métriques Calculées</h6>
+                            <ul class="mb-0 small">
+                                <li><strong>P@K (Precision at K):</strong> Proportion de modèles pertinents parmi les K premiers résultats</li>
+                                <li><strong>NDCG@K (Normalized Discounted Cumulative Gain):</strong> Mesure la qualité du classement</li>
+                                <li><strong>mAP (Mean Average Precision):</strong> Moyenne des précisions sur toutes les requêtes</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-play-fill"></i> Lancer l'Évaluation
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-lg-4">
+            <!-- Prérequis -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-check2-square"></i> Prérequis</h5>
+                </div>
+                <div class="card-body">
+                    <ul class="list-unstyled mb-0">
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i> Index non vide
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-check-circle text-success"></i> Modèles avec catégories
+                        </li>
+                        <li class="mb-2">
+                            <i class="bi bi-info-circle text-primary"></i> Au moins 2 modèles/catégorie
+                        </li>
+                    </ul>
+                    <hr>
+                    <p class="small text-muted mb-0">
+                        Les catégories servent de vérité terrain. Deux modèles sont considérés 
+                        comme "pertinents" s'ils appartiennent à la même catégorie.
+                    </p>
+                </div>
+            </div>
+            
+            <!-- Interprétation -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0"><i class="bi bi-lightbulb"></i> Interprétation</h5>
+                </div>
+                <div class="card-body small">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Métrique</th>
+                                <th>Excellent</th>
+                                <th>Bon</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td>P@5</td>
+                                <td>> 0.8</td>
+                                <td>> 0.6</td>
+                            </tr>
+                            <tr>
+                                <td>P@10</td>
+                                <td>> 0.7</td>
+                                <td>> 0.5</td>
+                            </tr>
+                            <tr>
+                                <td>NDCG@10</td>
+                                <td>> 0.8</td>
+                                <td>> 0.6</td>
+                            </tr>
+                            <tr>
+                                <td>mAP</td>
+                                <td>> 0.5</td>
+                                <td>> 0.3</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

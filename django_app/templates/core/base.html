@@ -41,6 +41,19 @@
                             <i class="bi bi-search"></i> Search
                         </a>
                     </li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {% if '3d' in request.path %}active{% endif %}" href="#" role="button" data-bs-toggle="dropdown">
+                            <i class="bi bi-box"></i> 3D Models
+                        </a>
+                        <ul class="dropdown-menu">
+                            <li><a class="dropdown-item" href="{% url 'core:model3d_gallery' %}"><i class="bi bi-grid-3x3-gap"></i> Galerie 3D</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:model3d_upload' %}"><i class="bi bi-cloud-upload"></i> Upload 3D</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:model3d_search' %}"><i class="bi bi-search"></i> Recherche 3D</a></li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li><a class="dropdown-item" href="{% url 'core:model3d_index_build' %}"><i class="bi bi-database-add"></i> Construire Index</a></li>
+                            <li><a class="dropdown-item" href="{% url 'core:model3d_evaluate' %}"><i class="bi bi-graph-up"></i> Évaluation</a></li>
+                        </ul>
+                    </li>
                 </ul>
             </div>
         </div>

@@ -72,6 +72,16 @@ def register_resources(api):
         IndexAddImageResource
     )
     from resources.images import ImageUploadResource, ImageResource, ImageTransformResource
+    from resources.models_3d import (
+        Model3DUpload,
+        Model3DDescriptors,
+        Model3DIndex,
+        Model3DIndexBuild,
+        Model3DSearch,
+        Model3DEvaluate,
+        Model3DInfo,
+        Model3DFile
+    )
     
     # Detection endpoints
     api.add_resource(DetectionResource, '/detect')
@@ -98,6 +108,16 @@ def register_resources(api):
     api.add_resource(ImageUploadResource, '/images/upload')
     api.add_resource(ImageResource, '/images/<int:image_id>')
     api.add_resource(ImageTransformResource, '/transform/<string:transform_type>')
+    
+    # 3D Model retrieval endpoints
+    api.add_resource(Model3DUpload, '/models3d/upload')
+    api.add_resource(Model3DDescriptors, '/models3d/descriptors')
+    api.add_resource(Model3DIndex, '/models3d/index')
+    api.add_resource(Model3DIndexBuild, '/models3d/index/build')
+    api.add_resource(Model3DSearch, '/models3d/search')
+    api.add_resource(Model3DEvaluate, '/models3d/evaluate')
+    api.add_resource(Model3DInfo, '/models3d/<string:model_id>')
+    api.add_resource(Model3DFile, '/models3d/<string:model_id>/file')
 
 
 def register_error_handlers(app):
@@ -134,13 +154,21 @@ app = create_app()
 
 if __name__ == '__main__':
     print("=" * 70)
-    print("Flask REST API for Object-Based Image Search")
+    print("Flask REST API for Object-Based Image Search + 3D Model Retrieval")
     print("=" * 70)
     print("KEY ENDPOINTS:")
     print("  POST /api/index/build         - Build persistent search index")
     print("  GET  /api/index/stats         - View index statistics")
     print("  POST /api/search/by-object    - Search by object classes")
     print("  DELETE /api/index/clear       - Clear the index")
+    print("")
+    print("3D MODEL ENDPOINTS:")
+    print("  POST /api/models3d/upload     - Upload 3D model (OBJ)")
+    print("  POST /api/models3d/descriptors - Extract 3D descriptors")
+    print("  POST /api/models3d/index      - Add model to 3D index")
+    print("  POST /api/models3d/index/build - Batch index 3D models")
+    print("  POST /api/models3d/search     - Search similar 3D models")
+    print("  GET  /api/models3d/<id>       - Get 3D model info")
     print("")
     print("OTHER ENDPOINTS:")
     print("  POST /api/detect              - Detect objects in image")
@@ -152,6 +180,7 @@ if __name__ == '__main__':
     print("  ✓ Persistent index (survives restarts)")
     print("  ✓ Object-class filtering (bus finds only bus)")
     print("  ✓ Automatic saving on every index operation")
+    print("  ✓ 3D Local Features: Spin Images, Shape Contexts, PFH")
     print("=" * 70)
     
     app.run(host='0.0.0.0', port=5000, debug=True)

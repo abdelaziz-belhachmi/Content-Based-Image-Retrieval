@@ -1,0 +1,73 @@
+{% extends 'core/base.html' %}
+{% load static %}
+
+{% block title %}{{ title }} - CBIR System{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0"><i class="bi bi-cloud-upload"></i> {{ title }}</h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="mb-4">
+                            <label for="file" class="form-label">Fichier OBJ</label>
+                            <input type="file" class="form-control" id="file" name="file" 
+                                   accept=".obj" required>
+                            <div class="form-text">
+                                Formats acceptés: Wavefront OBJ (.obj)
+                            </div>
+                        </div>
+                        
+                        <div class="mb-4">
+                            <label for="category" class="form-label">Catégorie</label>
+                            <input type="text" class="form-control" id="category" name="category" 
+                                   placeholder="Ex: Amphora, Lekythos, Vase...">
+                            <div class="form-text">
+                                Catégorie pour la classification (optionnel mais recommandé pour l'évaluation)
+                            </div>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-upload"></i> Uploader et Indexer
+                            </button>
+                            <a href="{% url 'core:model3d_gallery' %}" class="btn btn-outline-secondary">
+                                Annuler
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+            
+            <!-- Info Card -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <i class="bi bi-info-circle"></i> À propos du format OBJ
+                </div>
+                <div class="card-body">
+                    <p>Le format Wavefront OBJ est un format de fichier texte simple pour les modèles 3D.</p>
+                    <p>Structure typique:</p>
+                    <pre class="bg-light p-3"><code># Commentaire
+v x y z        # Sommet (vertex)
+vn nx ny nz    # Normale au sommet
+f v1 v2 v3     # Face triangulaire</code></pre>
+                    
+                    <h6>Base de données recommandée:</h6>
+                    <p>
+                        <a href="http://www.ipet.gr/~akoutsou/benchmark/" target="_blank">
+                            3D Pottery Benchmark Dataset
+                        </a>
+                        - 1012 modèles de poteries classés en catégories.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
