@@ -43,11 +43,16 @@
                             <label for="directory" class="form-label">
                                 <i class="bi bi-folder-fill text-warning"></i> Chemin du Répertoire
                             </label>
-                            <input type="text" class="form-control form-control-lg" id="directory" name="directory" 
-                                   placeholder="/chemin/vers/modeles3d" required>
+                            <div class="input-group">
+                                <input type="text" class="form-control form-control-lg" id="directory" name="directory" 
+                                       value="{{ default_path }}" placeholder="/chemin/vers/modeles3d">
+                                <button type="button" class="btn btn-outline-secondary" onclick="document.getElementById('directory').value='{{ default_path }}'">
+                                    <i class="bi bi-arrow-clockwise"></i> Défaut
+                                </button>
+                            </div>
                             <div class="form-text">
                                 Chemin absolu vers le dossier contenant les fichiers .obj. 
-                                Les sous-dossiers seront parcourus récursivement.
+                                Le chemin par défaut pointe vers <code>Data_3D/models</code>.
                             </div>
                         </div>
                         

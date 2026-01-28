@@ -77,10 +77,12 @@ def register_resources(api):
         Model3DDescriptors,
         Model3DIndex,
         Model3DIndexBuild,
+        Model3DQuickIndex,
         Model3DSearch,
         Model3DEvaluate,
         Model3DInfo,
-        Model3DFile
+        Model3DFile,
+        Model3DList
     )
     
     # Detection endpoints
@@ -113,7 +115,9 @@ def register_resources(api):
     api.add_resource(Model3DUpload, '/models3d/upload')
     api.add_resource(Model3DDescriptors, '/models3d/descriptors')
     api.add_resource(Model3DIndex, '/models3d/index')
+    api.add_resource(Model3DList, '/models3d/list')
     api.add_resource(Model3DIndexBuild, '/models3d/index/build')
+    api.add_resource(Model3DQuickIndex, '/models3d/index/quick')
     api.add_resource(Model3DSearch, '/models3d/search')
     api.add_resource(Model3DEvaluate, '/models3d/evaluate')
     api.add_resource(Model3DInfo, '/models3d/<string:model_id>')

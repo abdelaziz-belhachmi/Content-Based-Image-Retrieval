@@ -17,7 +17,7 @@ class FlaskAPIClient:
     
     def __init__(self, base_url=None):
         self.base_url = base_url or getattr(settings, 'FLASK_API_URL', 'http://localhost:5000/api')
-        self.timeout = 60  # seconds
+        self.timeout = 120  # seconds (increased for 3D model processing)
     
     def _make_request(self, method, endpoint, **kwargs):
         """Make HTTP request to Flask API"""
@@ -344,9 +344,9 @@ class FlaskAPIClient:
     
     # Generic HTTP methods for 3D endpoints
     
-    def get(self, endpoint):
-        """Generic GET request"""
-        return self._make_request('GET', endpoint)
+    def get(self, endpoint, params=None):
+        """Generic GET request with optional query parameters"""
+        return self._make_request('GET', endpoint, params=params)
     
     def post(self, endpoint, data=None, json_data=None):
         """Generic POST request with JSON data"""

@@ -35,6 +35,29 @@
         align-items: center;
         justify-content: center;
         font-weight: bold;
+        z-index: 10;
+    }
+    .mini-viewer {
+        width: 100%;
+        height: 150px;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 4px;
+        position: relative;
+        overflow: hidden;
+    }
+    .mini-viewer-placeholder {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
+        color: #6c757d;
+    }
+    .load-3d-btn {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 5;
     }
 </style>
 {% endblock %}
@@ -82,6 +105,67 @@
         </div>
     </div>
     
+    <!-- CBIR Evaluation Metrics -->
+    {% if evaluation_metrics %}
+    <div class="card mb-4 border-success">
+        <div class="card-header bg-success text-white">
+            <h6 class="mb-0"><i class="bi bi-graph-up"></i> Métriques d'Évaluation CBIR</h6>
+        </div>
+        <div class="card-body">
+            <div class="row text-center">
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Catégorie Requête</small>
+                        <span class="badge bg-secondary">{{ evaluation_metrics.query_category|default:"N/A" }}</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">P@5</small>
+                        <span class="fs-5 fw-bold text-primary">{{ evaluation_metrics.precision_at_5 }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">P@10</small>
+                        <span class="fs-5 fw-bold text-primary">{{ evaluation_metrics.precision_at_10 }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">AP</small>
+                        <span class="fs-5 fw-bold text-success">{{ evaluation_metrics.average_precision }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">NDCG@10</small>
+                        <span class="fs-5 fw-bold text-info">{{ evaluation_metrics.ndcg_at_10 }}%</span>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="border rounded p-2">
+                        <small class="text-muted d-block">Pertinents</small>
+                        <span class="fs-5 fw-bold">{{ evaluation_metrics.total_relevant_in_index }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="mt-2">
+                <small class="text-muted">
+                    <i class="bi bi-info-circle"></i> 
+                    <strong>P@K</strong>: Precision parmi les K premiers résultats |
+                    <strong>AP</strong>: Average Precision |
+                    <strong>NDCG</strong>: Qualité du classement
+                </small>
+            </div>
+        </div>
+    </div>
+    {% elif query_category %}
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle"></i> Catégorie de requête: <strong>{{ query_category }}</strong>
+    </div>
+    {% endif %}
+    
     <!-- Results -->
     {% if results %}
     <div class="row">
@@ -90,8 +174,13 @@
             <div class="card result-card h-100 position-relative">
                 <span class="rank-badge">{{ forloop.counter }}</span>
                 <div class="card-body">
-                    <div class="text-center mb-3">
-                        <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                    <!-- Mini 3D Preview -->
+                    <div class="mini-viewer mb-3" id="mini-viewer-{{ forloop.counter }}" data-model-url="{% url 'core:model3d_obj_content' model_id=result.model_id %}">
+                        <div class="mini-viewer-placeholder">
+                            <button class="btn btn-sm btn-outline-light load-3d-btn" onclick="loadMiniViewer({{ forloop.counter }}, this)">
+                                <i class="bi bi-box"></i> Charger 3D
+                            </button>
+                        </div>
                     </div>
                     
                     <h6 class="card-title text-truncate" title="{{ result.model_id }}">
@@ -103,14 +192,15 @@
                     {% endif %}
                     
                     <!-- Similarity Score -->
+                    {% widthratio result.similarity 1 100 as similarity_pct %}
                     <div class="mb-3">
                         <div class="d-flex justify-content-between mb-1">
                             <small class="text-muted">Similarité</small>
-                            <small class="fw-bold">{{ result.similarity|floatformat:2 }}%</small>
+                            <small class="fw-bold">{{ similarity_pct }}%</small>
                         </div>
                         <div class="progress" style="height: 8px;">
                             <div class="progress-bar bg-success" role="progressbar" 
-                                 style="width: {{ result.similarity|floatformat:0 }}%">
+                                 style="width: {{ similarity_pct }}%">
                             </div>
                         </div>
                     </div>
@@ -145,4 +235,87 @@
         </a>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Three.js for mini viewers (0.128.0 for legacy loader support) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+
+<script>
+// Store mini viewers to prevent memory leaks
+const miniViewers = {};
+
+function loadMiniViewer(index, button) {
+    const container = document.getElementById('mini-viewer-' + index);
+    if (!container) return;
+    
+    const modelUrl = container.dataset.modelUrl;
+    button.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+    button.disabled = true;
+    
+    // Clear placeholder
+    container.innerHTML = '';
+    
+    // Create mini Three.js scene
+    const width = container.clientWidth;
+    const height = container.clientHeight;
+    
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x1a1a2e);
+    
+    const camera = new THREE.PerspectiveCamera(45, width / height, 0.1, 100);
+    camera.position.set(0, 0.5, 3);
+    
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(width, height);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    container.appendChild(renderer.domElement);
+    
+    // Add lights
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
+    scene.add(ambientLight);
+    
+    const dirLight = new THREE.DirectionalLight(0xffffff, 0.8);
+    dirLight.position.set(5, 10, 7.5);
+    scene.add(dirLight);
+    
+    // Load model
+    const loader = new THREE.OBJLoader();
+    loader.load(modelUrl, function(object) {
+        object.traverse(function(child) {
+            if (child.isMesh) {
+                child.material = new THREE.MeshPhongMaterial({
+                    color: 0x00aaff,
+                    side: THREE.DoubleSide
+                });
+            }
+        });
+        
+        // Center and scale
+        const box = new THREE.Box3().setFromObject(object);
+        const center = box.getCenter(new THREE.Vector3());
+        const size = box.getSize(new THREE.Vector3());
+        object.position.sub(center);
+        const maxDim = Math.max(size.x, size.y, size.z);
+        object.scale.setScalar(1.5 / maxDim);
+        
+        scene.add(object);
+        
+        // Store for cleanup
+        miniViewers[index] = { scene, renderer, object };
+    }, undefined, function(error) {
+        container.innerHTML = '<div class="mini-viewer-placeholder"><i class="bi bi-exclamation-triangle text-danger"></i></div>';
+    });
+    
+    // Simple auto-rotation
+    function animate() {
+        requestAnimationFrame(animate);
+        scene.rotation.y += 0.01;
+        renderer.render(scene, camera);
+    }
+    animate();
+}
+</script>
 {% endblock %}

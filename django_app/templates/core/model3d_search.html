@@ -58,8 +58,14 @@
                         </div>
                         {% endif %}
                         
+                        <div class="alert alert-info" id="search-warning" style="display: none;">
+                            <i class="bi bi-hourglass-split"></i> 
+                            <strong>Extraction des descripteurs en cours...</strong><br>
+                            Cette opération peut prendre 30-60 secondes selon la complexité du modèle.
+                        </div>
+                        
                         <div class="d-grid gap-2">
-                            <button type="submit" class="btn btn-success btn-lg">
+                            <button type="submit" class="btn btn-success btn-lg" id="search-btn">
                                 <i class="bi bi-search"></i> Rechercher des Modèles Similaires
                             </button>
                         </div>
@@ -121,4 +127,23 @@
         </div>
     </div>
 </div>
-{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const searchBtn = document.getElementById('search-btn');
+    const searchWarning = document.getElementById('search-warning');
+    
+    form.addEventListener('submit', function(e) {
+        const fileInput = document.getElementById('file');
+        if (fileInput && fileInput.files.length > 0) {
+            searchBtn.disabled = true;
+            searchBtn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Recherche en cours...';
+            searchWarning.style.display = 'block';
+        }
+    });
+});
+</script>
+{% endblock extra_js %}
+{% endblock content %}

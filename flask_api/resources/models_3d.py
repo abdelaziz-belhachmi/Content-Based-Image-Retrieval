@@ -217,6 +217,65 @@ class Model3DIndex(Resource):
         }
 
 
+class Model3DList(Resource):
+    """List all indexed 3D models."""
+    
+    def get(self):
+        """
+        Get list of all indexed models.
+        
+        Query parameters:
+            - category: Filter by category (optional)
+            - limit: Maximum number of results (optional)
+            - offset: Pagination offset (optional)
+            
+        Returns:
+            - List of model info (id, category, filepath)
+        """
+        service = get_similarity_service()
+        
+        category = request.args.get('category')
+        limit = request.args.get('limit', type=int)
+        offset = request.args.get('offset', 0, type=int)
+        
+        # Get all model IDs
+        if category:
+            model_ids = service.index.get_models_by_category(category)
+        else:
+            model_ids = service.index.get_all_model_ids()
+        
+        # Sort by ID for consistent pagination
+        model_ids = sorted(model_ids)
+        
+        # Apply pagination
+        total = len(model_ids)
+        if limit:
+            model_ids = model_ids[offset:offset + limit]
+        else:
+            model_ids = model_ids[offset:]
+        
+        # Build response with basic info
+        models = []
+        for mid in model_ids:
+            entry = service.index.get_model(mid)
+            if entry:
+                models.append({
+                    'model_id': mid,
+                    'category': entry.get('category'),
+                    'filepath': entry.get('filepath'),
+                    'indexed_at': entry.get('indexed_at'),
+                    'has_descriptors': 'combined_vector' in entry
+                })
+        
+        return {
+            'success': True,
+            'models': models,
+            'total': total,
+            'offset': offset,
+            'limit': limit
+        }
+
+
 class Model3DIndexBuild(Resource):
     """Build index from multiple models."""
     
@@ -258,6 +317,74 @@ class Model3DIndexBuild(Resource):
         return result
 
 
+class Model3DQuickIndex(Resource):
+    """Quick index using default 3D data path."""
+    
+    def post(self):
+        """
+        Index all 3D models from the default data folder.
+        Uses the path configured in config.py (DATA_3D_FOLDER).
+        
+        Returns:
+            - Batch indexing results
+        """
+        from services.similarity_3d import get_default_data_path
+        
+        service = get_similarity_service()
+        default_path = get_default_data_path()
+        
+        dir_path = Path(default_path)
+        if not dir_path.exists():
+            return {
+                'success': False, 
+                'error': f'Default 3D data folder not found: {default_path}'
+            }, 404
+        
+        # Scan for OBJ files and categorize by parent folder
+        models = []
+        for obj_file in dir_path.glob('**/*.obj'):
+            # Use parent folder name as category if in subfolder
+            rel_path = obj_file.relative_to(dir_path)
+            if len(rel_path.parts) > 1:
+                category = rel_path.parts[0]
+            else:
+                category = 'uncategorized'
+            
+            models.append({
+                'id': obj_file.stem,
+                'filepath': str(obj_file),
+                'category': category
+            })
+        
+        if not models:
+            return {
+                'success': False, 
+                'error': f'No OBJ files found in {default_path}'
+            }, 404
+        
+        result = service.batch_index(models)
+        result['default_path'] = default_path
+        return result
+    
+    def get(self):
+        """Get information about the default 3D data path."""
+        from services.similarity_3d import get_default_data_path
+        
+        default_path = get_default_data_path()
+        dir_path = Path(default_path)
+        
+        obj_count = 0
+        if dir_path.exists():
+            obj_count = len(list(dir_path.glob('**/*.obj')))
+        
+        return {
+            'success': True,
+            'default_path': default_path,
+            'exists': dir_path.exists(),
+            'obj_count': obj_count
+        }
+
+
 class Model3DSearch(Resource):
     """Search for similar 3D models."""
     
@@ -271,9 +398,11 @@ class Model3DSearch(Resource):
             - metric: Distance metric ('cosine', 'euclidean', 'manhattan')
             - k: Number of results (default: 10)
             - category_filter: Filter by category (optional)
+            - evaluate: Whether to compute evaluation metrics (default: True)
             
         Returns:
             - results: List of similar models with distances
+            - evaluation_metrics: P@K, NDCG@K, AP metrics (if query has known category)
         """
         data = request.get_json() or {}
         service = get_similarity_service()
@@ -283,23 +412,45 @@ class Model3DSearch(Resource):
         metric = data.get('metric', 'cosine')
         k = data.get('k', 10)
         category_filter = data.get('category_filter')
+        evaluate = data.get('evaluate', True)
+        
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"3D Search request: model_id={model_id}, filepath={filepath}, metric={metric}, k={k}")
+        
+        # Check if index is empty
+        stats = service.get_stats()
+        if stats.get('total_models', 0) == 0:
+            return {
+                'success': False, 
+                'error': 'L\'index 3D est vide. Veuillez d\'abord indexer des modèles.'
+            }, 400
         
         try:
             if model_id:
                 # Search by indexed model ID
+                logger.info(f"Searching by model_id: {model_id}")
                 results = service.search_by_id(
                     model_id, 
                     metric=metric, 
                     k=k
                 )
             elif filepath:
-                # Search by file path
+                # Search by file path - this extracts descriptors which can be slow
+                logger.info(f"Searching by filepath: {filepath} (this may take 30-60 seconds)")
+                import os
+                if not os.path.exists(filepath):
+                    return {
+                        'success': False, 
+                        'error': f'Fichier non trouvé: {filepath}'
+                    }, 404
                 results = service.search(
                     query_filepath=filepath,
                     metric=metric,
                     k=k,
                     category_filter=category_filter
                 )
+                logger.info(f"Search by filepath completed, found {len(results)} results")
             elif 'file' in request.files:
                 # Search by uploaded file
                 file = request.files['file']
@@ -325,17 +476,85 @@ class Model3DSearch(Resource):
             else:
                 return {'success': False, 'error': 'No query provided'}, 400
             
-            return {
+            # Compute evaluation metrics if we have a query category
+            evaluation_metrics = None
+            query_category = None
+            
+            if evaluate:
+                # Get query category
+                if model_id:
+                    model_entry = service.index.get_model(model_id)
+                    if model_entry:
+                        query_category = model_entry.get('category')
+                elif filepath:
+                    # Try to infer category from filepath
+                    import re
+                    path_str = str(filepath)
+                    # Try common patterns like "category_name/model.obj" or "model_categoryName.obj"
+                    parts = Path(filepath).stem.split('_')
+                    if len(parts) >= 2:
+                        # Check if any part matches a known category
+                        stats = service.get_stats()
+                        categories = stats.get('categories', {})
+                        for part in parts:
+                            if part.lower() in [c.lower() for c in categories.keys()]:
+                                query_category = part
+                                break
+                
+                # Compute metrics if we have a query category
+                if query_category and len(results) > 0:
+                    # Compute P@K
+                    precision_at_5 = sum(1 for r in results[:5] if r.get('category') == query_category) / 5 if len(results) >= 5 else 0
+                    precision_at_10 = sum(1 for r in results[:10] if r.get('category') == query_category) / 10 if len(results) >= 10 else 0
+                    
+                    # Compute Average Precision
+                    relevant_count = 0
+                    precision_sum = 0
+                    for i, r in enumerate(results):
+                        if r.get('category') == query_category:
+                            relevant_count += 1
+                            precision_sum += relevant_count / (i + 1)
+                    
+                    total_relevant = len(service.index.get_models_by_category(query_category))
+                    ap = precision_sum / total_relevant if total_relevant > 0 else 0
+                    
+                    # Compute NDCG@K
+                    import numpy as np
+                    dcg_10 = 0
+                    idcg_10 = 0
+                    for i in range(min(10, len(results))):
+                        rel = 1 if results[i].get('category') == query_category else 0
+                        dcg_10 += rel / np.log2(i + 2)
+                    for i in range(min(10, total_relevant)):
+                        idcg_10 += 1 / np.log2(i + 2)
+                    ndcg_10 = dcg_10 / idcg_10 if idcg_10 > 0 else 0
+                    
+                    evaluation_metrics = {
+                        'query_category': query_category,
+                        'precision_at_5': round(precision_at_5 * 100, 1),
+                        'precision_at_10': round(precision_at_10 * 100, 1),
+                        'average_precision': round(ap * 100, 1),
+                        'ndcg_at_10': round(ndcg_10 * 100, 1),
+                        'total_relevant_in_index': total_relevant
+                    }
+            
+            response_data = {
                 'success': True,
                 'query': {
                     'model_id': model_id,
                     'filepath': filepath,
                     'metric': metric,
-                    'k': k
+                    'k': k,
+                    'category': query_category
                 },
                 'results': results,
                 'count': len(results)
             }
+            
+            if evaluation_metrics:
+                response_data['evaluation_metrics'] = evaluation_metrics
+            
+            return response_data
             
         except Exception as e:
             return {'success': False, 'error': str(e)}, 500

@@ -315,6 +315,7 @@ All local descriptors are concatenated and L2-normalized to create a unified fea
 | POST | /models3d/upload | Upload a 3D model |
 | POST | /models3d/descriptors | Extract descriptors from OBJ |
 | GET | /models3d/index | Get index statistics |
+| GET | /models3d/list | List all indexed models (with pagination) |
 | POST | /models3d/index/build | Build index from directory |
 | DELETE | /models3d/index | Clear the 3D index |
 | POST | /models3d/search | Search similar models |
@@ -322,13 +323,61 @@ All local descriptors are concatenated and L2-normalized to create a unified fea
 | GET | /models3d/{id} | Get model information |
 | GET | /models3d/{id}/file | Download OBJ file |
 
+### 3D Visualization (Three.js)
+
+The system includes an interactive WebGL-based 3D viewer powered by **Three.js**:
+
+**Features:**
+- **Interactive viewing**: Rotate, zoom, and pan 3D models with mouse controls
+- **Auto-rotation**: Automatic model rotation for better visualization
+- **Wireframe mode**: Toggle between solid and wireframe rendering
+- **Color customization**: Choose from preset colors for the model
+- **Fullscreen support**: Expand the viewer to fullscreen mode
+- **Gallery preview**: Quick preview modal in the gallery without leaving the page
+- **Search results preview**: Load 3D previews directly in search results
+
+**Viewer Controls:**
+- **Left click + drag**: Rotate the model
+- **Right click + drag**: Pan the view
+- **Scroll wheel**: Zoom in/out
+- **Toggle buttons**: Wireframe, auto-rotate, color options
+
+**Implementation:**
+- Uses Three.js (v0.128.0) with OBJLoader for loading Wavefront OBJ files
+- OrbitControls for camera interaction
+- Responsive design that adapts to container size
+- Custom `Model3DViewer` class in `static/js/viewer3d.js`
+
 ### 3D Evaluation Metrics
+
+The 3D search system computes and displays evaluation metrics in real-time when searching:
 
 | Metric | Formula | Interpretation |
 |--------|---------|----------------|
 | **P@K** | Relevant in top-K / K | Precision of top results |
 | **NDCG@K** | DCG@K / IDCG@K | Ranking quality |
-| **mAP** | Mean of AP across queries | Overall retrieval performance |
+| **AP** | Average Precision | Overall search quality |
+
+**Evaluation in Search Results:**
+
+When searching for similar 3D models, if the query model has a known category, the system automatically computes:
+- **P@5, P@10**: Precision at top 5 and 10 results
+- **Average Precision (AP)**: Mean precision across all relevant results
+- **NDCG@10**: Normalized Discounted Cumulative Gain
+
+These metrics appear in a dedicated panel above the search results.
+
+**Batch Evaluation:**
+
+For comprehensive system evaluation, use the **Évaluation** page (3D Models → Évaluation):
+```python
+# Via API
+response = api_client.post('/models3d/evaluate', {
+    'metric': 'cosine',
+    'k_values': [5, 10, 20]
+})
+# Returns: mAP, per-category P@K, NDCG@K
+```
 
 ### Usage (3D Module)
 

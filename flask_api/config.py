@@ -26,6 +26,11 @@ class Config:
     UPLOAD_FOLDER = BASE_DIR / 'uploads'
     MODELS_FOLDER = BASE_DIR.parent / 'yolo_training' / 'models'
     
+    # 3D Model paths
+    DATA_3D_FOLDER = BASE_DIR.parent / 'Data_3D' / 'models'
+    INDEX_3D_PATH = BASE_DIR / 'services' / 'model3d_index.json'
+    UPLOAD_FOLDER_3D = BASE_DIR / 'uploads_3d'
+    
     # YOLO model
     YOLO_MODEL_PATH = MODELS_FOLDER / 'yolov8n_finetuned_best.pt'
     YOLO_CONFIDENCE_THRESHOLD = 0.25

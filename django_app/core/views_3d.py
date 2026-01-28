@@ -27,6 +27,18 @@ class Model3DGalleryView(TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         
+        # Get pagination parameters
+        page = self.request.GET.get('page', 1)
+        try:
+            page = int(page)
+        except ValueError:
+            page = 1
+        per_page = 12
+        offset = (page - 1) * per_page
+        
+        # Get selected category filter
+        category_filter = self.request.GET.get('category', '')
+        
         # Get index stats from API
         try:
             response = api_client.get('/models3d/index')
@@ -54,8 +66,34 @@ class Model3DGalleryView(TemplateView):
             context['categories'] = {}
             context['total_models'] = 0
             context['category_list'] = []
+        
+        # Get list of models with pagination
+        try:
+            params = {'limit': per_page, 'offset': offset}
+            if category_filter:
+                params['category'] = category_filter
+            
+            list_response = api_client.get('/models3d/list', params=params)
+            if list_response and list_response.get('success'):
+                context['models'] = list_response.get('models', [])
+                context['models_total'] = list_response.get('total', 0)
+                
+                # Calculate pagination
+                total_pages = (list_response.get('total', 0) + per_page - 1) // per_page
+                context['page'] = page
+                context['total_pages'] = total_pages
+                context['has_prev'] = page > 1
+                context['has_next'] = page < total_pages
+                context['page_range'] = range(max(1, page - 2), min(total_pages + 1, page + 3))
+            else:
+                context['models'] = []
+                context['models_total'] = 0
+        except Exception as e:
+            context['models'] = []
+            context['models_total'] = 0
             
         context['title'] = 'Galerie de Modèles 3D'
+        context['category_filter'] = category_filter
         return context
 
 
@@ -189,7 +227,13 @@ class Model3DSearchView(View):
             if category_filter:
                 search_data['category_filter'] = category_filter
             
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"3D Search request: {search_data}")
+            
             response = api_client.post('/models3d/search', search_data)
+            
+            logger.info(f"3D Search response: {response}")
             
             # Clean up temp file
             try:
@@ -204,14 +248,19 @@ class Model3DSearchView(View):
                     'results': response.get('results', []),
                     'count': response.get('count', 0),
                     'metric': metric,
-                    'k': k
+                    'k': k,
+                    'evaluation_metrics': response.get('evaluation_metrics'),
+                    'query_category': response.get('query', {}).get('category')
                 }
                 return render(request, 'core/model3d_search_results.html', context)
             else:
-                messages.error(request, response.get('error', 'Erreur de recherche'))
+                error_msg = response.get('error', 'Erreur de recherche inconnue') if response else 'Pas de réponse du serveur API'
+                messages.error(request, f'Erreur: {error_msg}')
                 
         except Exception as e:
+            import traceback
             messages.error(request, f'Erreur: {str(e)}')
+            logging.getLogger(__name__).error(f"3D Search error: {traceback.format_exc()}")
         
         return redirect('core:model3d_search')
 
@@ -237,7 +286,9 @@ class Model3DSearchByIdView(View):
                     'results': response.get('results', []),
                     'count': response.get('count', 0),
                     'metric': metric,
-                    'k': k
+                    'k': k,
+                    'evaluation_metrics': response.get('evaluation_metrics'),
+                    'query_category': response.get('query', {}).get('category')
                 }
                 return render(request, 'core/model3d_search_results.html', context)
             else:
@@ -253,13 +304,17 @@ class Model3DIndexBuildView(View):
     """Build index from directory"""
     template_name = 'core/model3d_index_build.html'
     
+    # Default 3D data path
+    DEFAULT_3D_PATH = r'E:\Content-Based-Image-Retrieval\Data_3D\models'
+    
     def get(self, request):
         return render(request, self.template_name, {
-            'title': 'Construire l\'Index 3D'
+            'title': 'Construire l\'Index 3D',
+            'default_path': self.DEFAULT_3D_PATH
         })
     
     def post(self, request):
-        directory = request.POST.get('directory', '')
+        directory = request.POST.get('directory', '') or self.DEFAULT_3D_PATH
         category = request.POST.get('category', 'unknown')
         
         if not directory:
@@ -296,6 +351,31 @@ class Model3DIndexClearView(View):
                 messages.success(request, 'Index 3D vidé avec succès')
             else:
                 messages.error(request, 'Erreur lors du vidage de l\'index')
+                
+        except Exception as e:
+            messages.error(request, f'Erreur: {str(e)}')
+        
+        return redirect('core:model3d_gallery')
+
+
+class Model3DQuickIndexView(View):
+    """Quick index using default Data_3D path from Flask config"""
+    
+    def post(self, request):
+        try:
+            # Use the Flask API's quick index endpoint which uses config paths
+            response = api_client.post('/models3d/index/quick', {})
+            
+            if response and response.get('success'):
+                indexed = response.get('indexed', 0)
+                errors = response.get('errors', 0)
+                default_path = response.get('default_path', '')
+                messages.success(
+                    request, 
+                    f'Indexation terminée: {indexed} modèles indexés, {errors} erreurs (depuis {default_path})'
+                )
+            else:
+                messages.error(request, response.get('error', 'Erreur lors de l\'indexation'))
                 
         except Exception as e:
             messages.error(request, f'Erreur: {str(e)}')
@@ -369,6 +449,43 @@ class Model3DDownloadView(View):
             messages.error(request, f'Erreur: {str(e)}')
         
         return redirect('core:model3d_gallery')
+
+
+class Model3DObjContentView(View):
+    """Serve OBJ file content for Three.js viewer (inline, not as attachment)"""
+    
+    def get(self, request, model_id):
+        try:
+            # Get model info to find filepath
+            api_response = api_client.get(f'/models3d/{model_id}')
+            
+            if not api_response:
+                return HttpResponse(f'API returned no response for model {model_id}', status=500)
+            
+            if not api_response.get('success'):
+                error_msg = api_response.get('error', 'Unknown error')
+                return HttpResponse(f'API error: {error_msg}', status=404)
+            
+            filepath = api_response.get('filepath')
+            if not filepath:
+                return HttpResponse(f'No filepath in API response for model {model_id}', status=404)
+            
+            if not os.path.exists(filepath):
+                return HttpResponse(f'File not found at path: {filepath}', status=404)
+            
+            # Serve file with proper content type for Three.js
+            file_response = FileResponse(
+                open(filepath, 'rb'),
+                content_type='text/plain'
+            )
+            # Allow CORS for Three.js loader
+            file_response['Access-Control-Allow-Origin'] = '*'
+            file_response['Cache-Control'] = 'public, max-age=3600'
+            return file_response
+            
+        except Exception as e:
+            import traceback
+            return HttpResponse(f'Error: {str(e)}\n{traceback.format_exc()}', status=500)
 
 
 class Model3DEvaluateView(View):

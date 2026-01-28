@@ -457,8 +457,14 @@ class Similarity3DService:
         return self.index.get_stats()
 
 
+# Import config for paths
+try:
+    from config import Config
+    _index_path = Config.INDEX_3D_PATH
+except ImportError:
+    _index_path = Path(__file__).parent / 'model3d_index.json'
+
 # Singleton instances
-_index_path = Path(__file__).parent / 'model3d_index.json'
 model3d_index = Model3DIndex(str(_index_path))
 similarity3d_service = Similarity3DService(model3d_index)
 
@@ -466,3 +472,12 @@ similarity3d_service = Similarity3DService(model3d_index)
 def get_similarity_service() -> Similarity3DService:
     """Get the singleton similarity service."""
     return similarity3d_service
+
+
+def get_default_data_path() -> str:
+    """Get the default 3D data folder path."""
+    try:
+        from config import Config
+        return str(Config.DATA_3D_FOLDER)
+    except ImportError:
+        return str(Path(__file__).parent.parent.parent / 'Data_3D' / 'models')

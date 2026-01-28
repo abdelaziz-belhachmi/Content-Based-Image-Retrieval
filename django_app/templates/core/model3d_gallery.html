@@ -24,6 +24,31 @@
         font-size: 4rem;
         color: #6c757d;
     }
+    .mini-preview {
+        height: 150px;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+        border-radius: 4px 4px 0 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: relative;
+        overflow: hidden;
+    }
+    .preview-3d-btn {
+        position: absolute;
+        bottom: 10px;
+        right: 10px;
+    }
+    .category-filter-btn.active {
+        background-color: #0d6efd !important;
+        color: white !important;
+    }
+    
+    /* Modal 3D Viewer */
+    #modal-viewer3d {
+        height: 400px;
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    }
 </style>
 {% endblock %}
 
@@ -57,8 +82,15 @@
                     <h5 class="card-title">Catégories</h5>
                     {% if stats.categories %}
                     <div class="d-flex flex-wrap gap-2">
+                        <a href="{% url 'core:model3d_gallery' %}" 
+                           class="btn btn-sm {% if not category_filter %}btn-primary{% else %}btn-outline-secondary{% endif %} category-filter-btn">
+                            Tous ({{ stats.total_models }})
+                        </a>
                         {% for category, count in stats.categories.items %}
-                        <span class="badge bg-secondary">{{ category }}: {{ count }}</span>
+                        <a href="{% url 'core:model3d_gallery' %}?category={{ category }}" 
+                           class="btn btn-sm {% if category_filter == category %}btn-primary{% else %}btn-outline-secondary{% endif %} category-filter-btn">
+                            {{ category }} ({{ count }})
+                        </a>
                         {% endfor %}
                     </div>
                     {% else %}
@@ -73,10 +105,20 @@
     <div class="card mb-4">
         <div class="card-body">
             <h5 class="card-title"><i class="bi bi-gear"></i> Actions</h5>
-            <div class="btn-group">
+            <div class="d-flex flex-wrap gap-2">
                 <a href="{% url 'core:model3d_search' %}" class="btn btn-success">
                     <i class="bi bi-search"></i> Rechercher des Modèles Similaires
                 </a>
+                <a href="{% url 'core:model3d_index_build' %}" class="btn btn-outline-secondary">
+                    <i class="bi bi-database-add"></i> Construire Index
+                </a>
+                <form method="post" action="{% url 'core:model3d_quick_index' %}" class="d-inline">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-primary" 
+                            onclick="this.innerHTML='<span class=\\'spinner-border spinner-border-sm\\'></span> Indexation...'; this.disabled=true; this.form.submit();">
+                        <i class="bi bi-lightning"></i> Indexer Data_3D (rapide)
+                    </button>
+                </form>
                 <form method="post" action="{% url 'core:model3d_index_clear' %}" class="d-inline" 
                       onsubmit="return confirm('Êtes-vous sûr de vouloir vider l\'index 3D?')">
                     {% csrf_token %}
@@ -115,8 +157,73 @@
     </div>
     {% endif %}
     
-    <!-- Category Gallery (if models exist) -->
-    {% if stats.categories %}
+    <!-- Models Gallery -->
+    {% if models %}
+    <h3 class="mt-4 mb-3">
+        Modèles 
+        {% if category_filter %}({{ category_filter }}){% endif %}
+        <small class="text-muted">({{ models_total }} modèles)</small>
+    </h3>
+    <div class="row">
+        {% for model in models %}
+        <div class="col-md-4 col-lg-3 mb-4">
+            <div class="card model-card h-100">
+                <!-- Mini Preview Area -->
+                <div class="mini-preview" id="preview-{{ forloop.counter }}" data-model-id="{{ model.model_id }}">
+                    <i class="bi bi-box" style="font-size: 3rem; color: #6c757d;"></i>
+                    <button class="btn btn-sm btn-light preview-3d-btn" 
+                            onclick="openViewerModal('{{ model.model_id }}', '{% url 'core:model3d_obj_content' model_id=model.model_id %}')"
+                            title="Aperçu 3D">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </div>
+                <div class="card-body">
+                    {% if model.category %}
+                    <span class="badge bg-secondary mb-2">{{ model.category }}</span>
+                    {% endif %}
+                    <h6 class="card-title text-truncate" title="{{ model.model_id }}">
+                        {{ model.model_id|truncatechars:20 }}
+                    </h6>
+                    <div class="d-grid gap-2">
+                        <a href="{% url 'core:model3d_detail' model_id=model.model_id %}" class="btn btn-sm btn-outline-primary">
+                            <i class="bi bi-eye"></i> Détails
+                        </a>
+                        <a href="{% url 'core:model3d_search_by_id' model_id=model.model_id %}" class="btn btn-sm btn-outline-success">
+                            <i class="bi bi-search"></i> Similaires
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    
+    <!-- Pagination -->
+    {% if total_pages > 1 %}
+    <nav aria-label="Pagination" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <li class="page-item {% if not has_prev %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page|add:'-1' }}{% if category_filter %}&category={{ category_filter }}{% endif %}">
+                    Précédent
+                </a>
+            </li>
+            {% for p in page_range %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+                <a class="page-link" href="?page={{ p }}{% if category_filter %}&category={{ category_filter }}{% endif %}">
+                    {{ p }}
+                </a>
+            </li>
+            {% endfor %}
+            <li class="page-item {% if not has_next %}disabled{% endif %}">
+                <a class="page-link" href="?page={{ page|add:'1' }}{% if category_filter %}&category={{ category_filter }}{% endif %}">
+                    Suivant
+                </a>
+            </li>
+        </ul>
+    </nav>
+    {% endif %}
+    {% elif stats.total_models > 0 %}
+    <!-- Category Gallery (if no individual models but we have stats) -->
     <h3 class="mt-4 mb-3">Parcourir par Catégorie</h3>
     <div class="row">
         {% for category, count in stats.categories.items %}
@@ -126,6 +233,9 @@
                     <i class="bi bi-box model-3d-icon"></i>
                     <h5 class="card-title mt-2">{{ category }}</h5>
                     <p class="card-text text-muted">{{ count }} modèle{% if count > 1 %}s{% endif %}</p>
+                    <a href="?category={{ category }}" class="btn btn-sm btn-outline-primary">
+                        Voir les modèles
+                    </a>
                 </div>
             </div>
         </div>
@@ -133,4 +243,106 @@
     </div>
     {% endif %}
 </div>
+
+<!-- 3D Viewer Modal -->
+<div class="modal fade" id="viewer3dModal" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header bg-dark text-white">
+                <h5 class="modal-title"><i class="bi bi-box"></i> Aperçu 3D: <span id="modal-model-id"></span></h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="modal-viewer3d"></div>
+            </div>
+            <div class="modal-footer">
+                <div class="form-check form-switch me-3">
+                    <input class="form-check-input" type="checkbox" id="modal-wireframe">
+                    <label class="form-check-label" for="modal-wireframe">Fil de fer</label>
+                </div>
+                <div class="form-check form-switch me-3">
+                    <input class="form-check-input" type="checkbox" id="modal-autorotate" checked>
+                    <label class="form-check-label" for="modal-autorotate">Auto-rotation</label>
+                </div>
+                <a href="#" id="modal-detail-link" class="btn btn-primary">
+                    <i class="bi bi-arrow-right"></i> Voir les détails
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Three.js for 3D viewer modal (0.128.0 for legacy loader support) -->
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+<script src="{% static 'js/viewer3d.js' %}"></script>
+
+<script>
+let modalViewer = null;
+let pendingModelUrl = null;
+
+// Set up modal event listener once
+document.addEventListener('DOMContentLoaded', function() {
+    const modalElement = document.getElementById('viewer3dModal');
+    if (modalElement) {
+        modalElement.addEventListener('shown.bs.modal', function() {
+            if (pendingModelUrl) {
+                // Dispose old viewer if exists
+                if (modalViewer) {
+                    modalViewer.dispose();
+                    modalViewer = null;
+                }
+                
+                // Create new viewer
+                modalViewer = new Model3DViewer('modal-viewer3d', {
+                    backgroundColor: 0x1a1a2e,
+                    modelColor: 0x00aaff,
+                    autoRotate: document.getElementById('modal-autorotate').checked
+                });
+                
+                modalViewer.loadOBJ(pendingModelUrl);
+                pendingModelUrl = null;
+            }
+        });
+        
+        modalElement.addEventListener('hidden.bs.modal', function() {
+            if (modalViewer) {
+                modalViewer.dispose();
+                modalViewer = null;
+            }
+        });
+    }
+    
+    // Modal controls
+    const wireframeCheckbox = document.getElementById('modal-wireframe');
+    if (wireframeCheckbox) {
+        wireframeCheckbox.addEventListener('change', function() {
+            if (modalViewer) modalViewer.setWireframe(this.checked);
+        });
+    }
+    
+    const autorotateCheckbox = document.getElementById('modal-autorotate');
+    if (autorotateCheckbox) {
+        autorotateCheckbox.addEventListener('change', function() {
+            if (modalViewer) modalViewer.setAutoRotate(this.checked);
+        });
+    }
+});
+
+function openViewerModal(modelId, modelUrl) {
+    // Update modal content
+    document.getElementById('modal-model-id').textContent = modelId;
+    document.getElementById('modal-detail-link').href = '/3d/model/' + modelId + '/';
+    
+    // Store the URL to load when modal is shown
+    pendingModelUrl = modelUrl;
+    
+    // Show modal
+    const modal = new bootstrap.Modal(document.getElementById('viewer3dModal'));
+    modal.show();
+}
+</script>
 {% endblock %}

@@ -49,6 +49,7 @@ urlpatterns = [
     path('3d/model/<str:model_id>/', views_3d.Model3DDetailView.as_view(), name='model3d_detail'),
     path('3d/model/<str:model_id>/descriptors/', views_3d.Model3DDescriptorsView.as_view(), name='model3d_descriptors'),
     path('3d/model/<str:model_id>/download/', views_3d.Model3DDownloadView.as_view(), name='model3d_download'),
+    path('3d/model/<str:model_id>/obj/', views_3d.Model3DObjContentView.as_view(), name='model3d_obj_content'),
     path('3d/model/<str:model_id>/delete/', views_3d.Model3DDeleteView.as_view(), name='model3d_delete'),
     
     # Search
@@ -57,6 +58,7 @@ urlpatterns = [
     
     # Index management
     path('3d/index/build/', views_3d.Model3DIndexBuildView.as_view(), name='model3d_index_build'),
+    path('3d/index/quick/', views_3d.Model3DQuickIndexView.as_view(), name='model3d_quick_index'),
     path('3d/index/clear/', views_3d.Model3DIndexClearView.as_view(), name='model3d_index_clear'),
     
     # Evaluation
